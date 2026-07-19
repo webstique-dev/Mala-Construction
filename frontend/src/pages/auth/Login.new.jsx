@@ -36,6 +36,7 @@ export default function Login() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [sites, setSites] = useState([]);
   const [isLoadingSites, setIsLoadingSites] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const loginForm = useForm({ defaultValues: { email: '', password: '', rememberMe: false } });
   const registerForm = useForm({
@@ -75,6 +76,7 @@ export default function Login() {
 
   const onLoginSubmit = async (values) => {
     setServerError(null);
+    setIsLoggingIn(true);
     try {
       const payload = { ...values, email: trimString(values.email), password: trimString(values.password) };
       const user = await login(payload);
@@ -85,6 +87,7 @@ export default function Login() {
       const message = err.response?.data?.message || 'Unable to sign in. Check your credentials and try again.';
       setServerError(message);
       toast.error(message);
+      setIsLoggingIn(false);
     }
   };
 
@@ -157,8 +160,8 @@ export default function Login() {
             </label>
             {/* <a href="/forgot-password" className="login-forgot-link">Forgot password?</a> */}
           </div>
-          <button type="submit" className="login-button" disabled={loginForm.formState.isSubmitting}>
-            {loginForm.formState.isSubmitting ? (<span className="login-button__content"><LoaderCircle size={16} className="login-spinner" />Signing in...</span>) : 'Sign in'}
+          <button type="submit" className="login-button" disabled={isLoggingIn || loginForm.formState.isSubmitting}>
+            {isLoggingIn || loginForm.formState.isSubmitting ? (<span className="login-button__content"><LoaderCircle size={16} className="login-spinner" />Signing In...</span>) : 'Sign in'}
           </button>
         </form>
       </motion.div>
@@ -244,7 +247,7 @@ export default function Login() {
         </form>
       </motion.div>
     ),
-  }), [loginForm, registerForm, showPassword, showConfirmPassword, sites, isLoadingSites]);
+  }), [loginForm, registerForm, showPassword, showConfirmPassword, sites, isLoadingSites, isLoggingIn]);
 
   return (
     <div className="login-container">
