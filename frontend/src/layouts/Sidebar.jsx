@@ -107,7 +107,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             >
               <div className="sidebar__header">
-                <span className="sidebar__brand">MALA ERP</span>
+                <span className="sidebar__brand">MALA CONSTR.</span>
                 <button type="button" className="sidebar__collapse-btn touch-target" onClick={onClose} aria-label="Close menu">
                   <X size={20} />
                 </button>
