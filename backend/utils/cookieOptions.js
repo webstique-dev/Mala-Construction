@@ -2,11 +2,20 @@ const env = require('../config/env');
 const { parseDurationMs } = require('./tokenUtils');
 
 /** Base flags shared by all auth cookies. */
+// function baseCookieOptions() {
+//   return {
+//     httpOnly: true,
+//     secure: env.cookie.secure,
+//     sameSite: 'lax',
+//     domain: env.cookie.domain,
+//   };
+// }
+
 function baseCookieOptions() {
   return {
     httpOnly: true,
-    secure: env.cookie.secure,
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     domain: env.cookie.domain,
   };
 }
