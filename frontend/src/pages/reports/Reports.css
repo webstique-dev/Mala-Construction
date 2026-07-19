@@ -29,7 +29,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
-  margin-bottom: var(--space-sm);
+  /* margin-bottom: var(--space-sm); */
 }
 
 .reports-page__kpi-card {
@@ -98,7 +98,7 @@
 
 .reports-page__filter-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
   gap: var(--space-md);
 }
 
@@ -112,7 +112,7 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
   letter-spacing: 0.05em;
 }
 
@@ -158,15 +158,15 @@
 
 .reports-page__table th {
   background-color: var(--color-bg);
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-sm);
+  height: 48px;
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--color-border);
   user-select: none;
-  white-space: nowrap;
 }
 
 .reports-page__table th.sortable {
@@ -183,11 +183,13 @@
 }
 
 .reports-page__table td {
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-xs);
+  height: 48px;
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
+  white-space: normal;
+  /* word-break: break-word; */
 }
 
 .reports-page__table tbody tr:nth-child(even) {
@@ -237,4 +239,35 @@
 
 .reports-page__empty-state p {
   font-size: var(--font-size-sm);
+}
+
+.btn span {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.reports-mobile-search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.reports-mobile-search-row .reports-page__field {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .clear-filters-btn {
+    font-size: 0;
+  }
+
+  .clear-filters-btn::after {
+    content: "Clear";
+    font-size: 14px;
+    /* Match your button font size */
+  }
 }

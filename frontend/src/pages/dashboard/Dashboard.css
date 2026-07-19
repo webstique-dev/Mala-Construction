@@ -71,6 +71,75 @@
   align-items: flex-end;
 }
 
+.dashboard__mobile-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.dashboard__mobile-search {
+  position: relative;
+  flex: 1;
+}
+
+.dashboard__mobile-search input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.dashboard__mobile-search svg {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
+.dashboard__drawer-actions {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.dashboard__drawer-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.dashboard__drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.dashboard__drawer-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.dashboard__drawer-search {
+  position: relative;
+}
+
+.dashboard__drawer-search input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.dashboard__drawer-search svg {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
 .dashboard__loading-banner {
   padding: 0.65rem 0.9rem;
   border-radius: var(--radius-sm);
@@ -188,7 +257,7 @@
 /* --- Charts Redesign --- */
 .dashboard__charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: var(--space-lg);
 }
 
@@ -219,7 +288,7 @@
 /* --- Activity Logs & Lists Redesign --- */
 .dashboard__activity-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: var(--space-lg);
 }
 
@@ -383,6 +452,12 @@
   100% { background-position: -200% 0; }
 }
 
+@media (max-width: 767px) {
+  .dashboard__mobile-filter-row {
+    gap: var(--space-xs);
+  }
+}
+
 @media (max-width: 640px) {
   .dashboard__header-section {
     flex-direction: column;
@@ -391,5 +466,24 @@
   .dashboard__controls-panel {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard__controls-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+  }
+  .dashboard__site-selector {
+    width: 100% !important;
+  }
+  .dashboard__period-switcher {
+    width: 100%;
+    justify-content: space-around;
+  }
+  .period-btn {
+    flex: 1;
+    text-align: center;
   }
 }

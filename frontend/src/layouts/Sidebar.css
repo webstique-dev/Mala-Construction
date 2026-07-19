@@ -1,5 +1,6 @@
 .sidebar {
-  display: none; /* hidden by default; shown as rail on desktop below */
+  display: none;
+  /* hidden by default; shown as rail on desktop below */
   flex-direction: column;
   width: var(--sidebar-width);
   height: 100vh;
@@ -46,6 +47,9 @@
 .sidebar__collapse-btn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
   border-radius: var(--radius-sm);
   color: var(--color-sidebar-text);
   padding: var(--space-2xs) var(--space-sm);
@@ -70,7 +74,7 @@
   font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255, 255, 255, 0.6);
   padding: 0 var(--space-sm);
   margin-bottom: var(--space-2xs);
 }
@@ -80,7 +84,8 @@
   align-items: center;
   gap: var(--space-sm);
   padding: 8px 10px;
-  border-radius: 8px; /* pill highlight radius */
+  border-radius: 8px;
+  /* pill highlight radius */
   color: var(--color-sidebar-text);
   font-size: var(--font-size-sm);
   transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
@@ -156,7 +161,7 @@
 
 .sidebar__cta .cta-btn {
   margin-left: auto;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
   border: none;
   padding: 8px 12px;

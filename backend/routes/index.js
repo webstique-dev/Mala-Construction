@@ -5,6 +5,7 @@ router.use('/auth', require('./auth.routes'));
 router.use('/sites', require('./site.routes'));
 router.use('/site-admins', require('./siteAdmin.routes'));
 router.use('/lookups', require('./lookup.routes'));
+router.use('/sites', require('./site.routes'));
 router.use('/materials', require('./material.routes'));
 router.use('/workers', require('./worker.routes'));
 router.use('/payments', require('./workerPayment.routes'));

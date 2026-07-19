@@ -75,30 +75,6 @@ export default function ActivityLogs() {
   };
 
   const filterConfig = [
-    ...(isSuperAdmin ? [{
-      key: 'siteId',
-      label: 'Site',
-      type: 'select',
-      value: siteFilter,
-      onChange: (val) => { setSiteFilter(val); setPage(1); },
-      options: activeSites.data?.map((s) => ({ value: s._id, label: s.name })) || [],
-    }] : []),
-    {
-      key: 'action',
-      label: 'Action',
-      type: 'select',
-      value: actionFilter,
-      onChange: (val) => { setActionFilter(val); setPage(1); },
-      options: Object.entries(ACTION_LABELS).map(([k, v]) => ({ value: k, label: v })),
-    },
-    {
-      key: 'entityType',
-      label: 'Entity',
-      type: 'select',
-      value: entityFilter,
-      onChange: (val) => { setEntityFilter(val); setPage(1); },
-      options: ['Site', 'User', 'Material', 'Worker', 'WorkerPayment', 'Expense'].map((e) => ({ value: e, label: e })),
-    },
     {
       key: 'startDate',
       label: 'Start Date',
@@ -112,6 +88,30 @@ export default function ActivityLogs() {
       type: 'date',
       value: endDate,
       onChange: (val) => { setEndDate(val); setPage(1); },
+    },
+    ...(isSuperAdmin ? [{
+      key: 'siteId',
+      label: 'Site',
+      type: 'select',
+      value: siteFilter,
+      onChange: (val) => { setSiteFilter(val); setPage(1); },
+      options: activeSites.data?.map((s) => ({ value: s._id, label: s.name })) || [],
+    }] : []),
+    {
+      key: 'entityType',
+      label: 'Entity',
+      type: 'select',
+      value: entityFilter,
+      onChange: (val) => { setEntityFilter(val); setPage(1); },
+      options: ['Site', 'User', 'Material', 'Worker', 'WorkerPayment', 'Expense'].map((e) => ({ value: e, label: e })),
+    },
+    {
+      key: 'action',
+      label: 'Action',
+      type: 'select',
+      value: actionFilter,
+      onChange: (val) => { setActionFilter(val); setPage(1); },
+      options: Object.entries(ACTION_LABELS).map(([k, v]) => ({ value: k, label: v })),
     },
   ];
 

@@ -88,14 +88,6 @@ export default function Workers() {
       options: activeSites.data?.map((s) => ({ value: s._id, label: s.name })) || [],
     }] : []),
     {
-      key: 'profession',
-      label: 'Profession',
-      type: 'select',
-      value: professionFilter,
-      onChange: (val) => { setProfessionFilter(val); setPage(1); },
-      options: professions.data?.map((p) => ({ value: p._id, label: p.name })) || [],
-    },
-    {
       key: 'status',
       label: 'Status',
       type: 'select',
@@ -107,11 +99,12 @@ export default function Workers() {
       ],
     },
     {
-      key: 'showDeleted',
-      label: 'Show Deleted',
-      type: 'checkbox',
-      value: showDeleted,
-      onChange: (val) => { setShowDeleted(val); setPage(1); },
+      key: 'profession',
+      label: 'Profession',
+      type: 'select',
+      value: professionFilter,
+      onChange: (val) => { setProfessionFilter(val); setPage(1); },
+      options: professions.data?.map((p) => ({ value: p._id, label: p.name })) || [],
     },
   ];
 

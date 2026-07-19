@@ -18,6 +18,28 @@ const login = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: result.user });
 });
 
+const register = asyncHandler(async (req, res) => {
+  const { email, password, rememberMe, role, assignedSite, name, username, phone, acceptedTerms } = req.body;
+  const result = await authService.register({
+    email,
+    password,
+    rememberMe,
+    role,
+    assignedSite,
+    name,
+    username,
+    phone,
+    acceptedTerms,
+    userAgent: req.headers['user-agent'],
+    req,
+  });
+
+  res.cookie('accessToken', result.accessToken, accessCookieOptions());
+  res.cookie('refreshToken', result.refreshToken, refreshCookieOptions(rememberMe));
+
+  res.status(201).json({ success: true, data: result.user, message: 'Account created successfully.' });
+});
+
 const refresh = asyncHandler(async (req, res) => {
   const token = req.cookies?.refreshToken;
   const result = await authService.refresh({ refreshToken: token, userAgent: req.headers['user-agent'] });
@@ -30,7 +52,7 @@ const refresh = asyncHandler(async (req, res) => {
 
 const logout = asyncHandler(async (req, res) => {
   const token = req.cookies?.refreshToken;
-  await authService.logout({ refreshToken: token, req });
+  await authService.logout({ refreshToken: token, user: req.user, req });
 
   res.clearCookie('accessToken', clearCookieOptions('/'));
   res.clearCookie('refreshToken', clearCookieOptions('/api/auth'));
@@ -62,4 +84,4 @@ const changePassword = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: 'Password updated successfully.' });
 });
 
-module.exports = { login, refresh, logout, logoutAllDevices, me, changePassword };
+module.exports = { login, register, refresh, logout, logoutAllDevices, me, changePassword };

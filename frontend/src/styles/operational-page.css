@@ -39,6 +39,7 @@
   justify-content: flex-end;
   gap: var(--space-2xs);
   color: black;
+  flex-wrap: wrap;
 }
 
 .module-page__total-preview {
@@ -113,4 +114,56 @@
 
 .link-btn:hover {
   text-decoration: underline;
+}
+
+/* --- Shared Table styles (relocated from WorkerProfile.css) --- */
+.worker-payments-card__table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.worker-payments-card__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.worker-payments-card__table th {
+  font-size: var(--font-size-xs);
+  text-align: start;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.05em;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+.worker-payments-card__table td {
+  padding: var(--space-sm);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.worker-payments-card__table tr:last-child td {
+  border-bottom: none;
+}
+
+.worker-payments-card__table tr:hover td {
+  background-color: var(--color-steel-50);
+}
+
+[data-theme='dark'] .worker-payments-card__table tr:hover td {
+  background-color: var(--color-steel-700);
+}
+
+.worker-payments-card__amount {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
 }

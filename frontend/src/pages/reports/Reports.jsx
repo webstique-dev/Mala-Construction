@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Download, Printer, FileText, FileSpreadsheet, Check, Settings, Info,
   ArrowUpDown, ChevronUp, ChevronDown, ShoppingBag, Receipt, CreditCard,
-  Layers, Database, Search, Inbox
+  Layers, Database, Search, Inbox, XCircle, Filter
 } from 'lucide-react';
 import Select from 'react-select';
 import Button from '../../components/common/Button';
@@ -14,6 +14,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { reportService } from '../../services/reportService';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import AccordionCard from '../../components/ui/AccordionCard';
+import Drawer from '../../components/drawers/Drawer';
 import './Reports.css';
 
 const REPORT_TYPES = [
@@ -59,6 +61,7 @@ export default function Reports() {
   const [professionFilter, setProfessionFilter] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [showDeleted, setShowDeleted] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   // Sorting state
   const [sortBy, setSortBy] = useState('date');
@@ -100,8 +103,7 @@ export default function Reports() {
       });
       setReportData(res);
     } catch (err) {
-      console.error('Error loading report preview:', err);
-      setReportData(null);
+      toast.error('Failed to update live report metrics preview.');
     } finally {
       setIsLoadingReport(false);
     }
@@ -127,7 +129,7 @@ export default function Reports() {
   const reactSelectStyles = {
     control: (provided, state) => ({
       ...provided,
-      minHeight: 38,
+      minHeight: 44,
       borderRadius: 8,
       backgroundColor: 'var(--color-surface)',
       borderColor: state.isFocused ? 'var(--color-primary-500)' : 'var(--color-border)',
@@ -330,20 +332,267 @@ export default function Reports() {
       </div>
 
       {/* Interactive Filters Panel */}
+      {/* Interactive Filters Panel */}
       <Card className="reports-page__filter-card">
         <div className="reports-page__panel-header">
-          <Settings size={18} className="reports-page__panel-icon" />
+          {/* <Settings size={18} className="reports-page__panel-icon" /> */}
           <h3>Report Query Parameters</h3>
         </div>
 
-        <div className="reports-page__filter-grid">
-          <div className="reports-page__field">
-            <label htmlFor="rep-type">Report Structure</label>
-            <select id="rep-type" className="form-select" value={type} onChange={(e) => setType(e.target.value)}>
-              {REPORT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
+        {/* Desktop inline grid */}
+        <div className="desktop-only">
+          <div className="reports-page__filter-grid">
+            <div className="reports-page__field">
+              <label htmlFor="rep-search">Search</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  id="rep-search"
+                  type="text"
+                  className="form-input"
+                  placeholder="Invoice, title, desc..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  style={{ paddingRight: 36, paddingLeft: 36 }}
+                />
+                <Search size={16} style={{ position: 'absolute', left: 12, opacity: 0.4 }} />
+                {searchFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilter('')}
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <XCircle size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
 
+            <div className="reports-page__field">
+              <label>Start Date</label>
+              <DatePickerInput value={startDate} onChange={setStartDate} placeholder="From Date" />
+            </div>
+
+            <div className="reports-page__field">
+              <label>End Date</label>
+              <DatePickerInput value={endDate} onChange={setEndDate} placeholder="To Date" />
+            </div>
+
+            {isSuperAdmin && (
+              <div className="reports-page__field">
+                <label>Project Site</label>
+                <Select
+                  styles={reactSelectStyles}
+                  options={siteOptions}
+                  value={siteOptions.find(o => o.value === siteFilter) || null}
+                  onChange={(opt) => setSiteFilter(opt ? opt.value : '')}
+                  isClearable
+                  placeholder="All Sites"
+                />
+              </div>
+            )}
+
+            {/* <div className="reports-page__field">
+              <label>Category Filter</label>
+              <Select
+                styles={reactSelectStyles}
+                options={categoryOptions}
+                value={categoryOptions.flatMap(g => g.options).find(o => o.value === categoryFilter) || null}
+                onChange={(opt) => setCategoryFilter(opt ? opt.value : '')}
+                isClearable
+                placeholder="All Categories"
+              />
+            </div> */}
+
+            <div className="reports-page__field">
+              <label>Status Filter</label>
+              <Select
+                styles={reactSelectStyles}
+                options={STATUS_OPTIONS}
+                value={STATUS_OPTIONS.find(o => o.value === statusFilter) || null}
+                onChange={(opt) => setStatusFilter(opt ? opt.value : '')}
+                isClearable
+                placeholder="All Statuses"
+              />
+            </div>
+
+            <div className="reports-page__field">
+              <label htmlFor="rep-type">Report Structure</label>
+              <select id="rep-type" className="form-select" value={type} onChange={(e) => setType(e.target.value)}>
+                {REPORT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+
+            <div className="reports-page__field">
+              <label>Payment Method</label>
+              <Select
+                styles={reactSelectStyles}
+                options={PAYMENT_METHOD_OPTIONS}
+                value={PAYMENT_METHOD_OPTIONS.find(o => o.value === paymentMethodFilter) || null}
+                onChange={(opt) => setPaymentMethodFilter(opt ? opt.value : '')}
+                isClearable
+                placeholder="All Methods"
+              />
+            </div>
+
+            {/* <div className="reports-page__field">
+              <label>Supplier / Vendor</label>
+              <Select
+                styles={reactSelectStyles}
+                options={supplierOptions}
+                value={supplierOptions.find(o => o.value === vendorFilter) || null}
+                onChange={(opt) => setVendorFilter(opt ? opt.value : '')}
+                isClearable
+                placeholder="All Suppliers"
+              />
+            </div> */}
+
+            {/* <div className="reports-page__field">
+              <label>Worker / Employee</label>
+              <Select
+                styles={reactSelectStyles}
+                options={workerOptions}
+                value={workerOptions.find(o => o.value === workerFilter) || null}
+                onChange={(opt) => setWorkerFilter(opt ? opt.value : '')}
+                isClearable
+                placeholder="All Workers"
+              />
+            </div> */}
+
+            {/* <div className="reports-page__field">
+              <label>Profession</label>
+              <Select
+                styles={reactSelectStyles}
+                options={professionOptions}
+                value={professionOptions.find(o => o.value === professionFilter) || null}
+                onChange={(opt) => setProfessionFilter(opt ? opt.value : '')}
+                isClearable
+                placeholder="All Trades"
+              />
+            </div> */}
+          </div>
+        </div>
+
+        {/* Mobile simplified header panel */}
+        <div className="mobile-only">
+          <div className="reports-mobile-search-row">
+            <div className="reports-page__field">
+              <label htmlFor="rep-search-mobile">Search</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  id="rep-search-mobile"
+                  type="text"
+                  className="form-input"
+                  placeholder="Invoice, title, desc..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  style={{ paddingRight: 36, paddingLeft: 36 }}
+                />
+                <Search size={16} style={{ position: 'absolute', left: 12, opacity: 0.4 }} />
+                {searchFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilter('')}
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 0
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <XCircle size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              onClick={() => setIsFilterDrawerOpen(true)}
+              style={{ height: 44, display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              <Filter size={16} />
+              <span>Filters</span>
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className="reports-page__actions"
+          style={{
+            display: "flex",
+            gap: "12px", // Adjust spacing as needed
+            alignItems: "center",
+            flexWrap: "wrap",
+            // marginTop: "var(--space-md)"
+          }}
+        >
+          <Button onClick={() => handleExport('excel')} isLoading={isExporting} disabled={isExporting}>
+            <Download size={16} style={{ marginRight: 8 }} />
+            Export to Excel
+          </Button>
+
+          <Button
+            onClick={() => handleExport('pdf')}
+            isLoading={isExporting}
+            disabled={isExporting}
+            variant="secondary"
+          >
+            <Printer size={16} style={{ marginRight: 8 }} />
+            Print PDF View
+          </Button>
+
+          <Button
+            onClick={clearAllFilters}
+            variant="secondary"
+            className="clear-filters-btn"
+          >
+            Clear Filters
+          </Button>
+        </div>
+      </Card>
+
+      {/* Mobile Drawer Slide-in */}
+      <Drawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        title="Filter Parameters"
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                clearAllFilters();
+                setIsFilterDrawerOpen(false);
+              }}
+              style={{ flex: 1 }}
+            >
+              Clear Filters
+            </Button>
+            <Button onClick={() => setIsFilterDrawerOpen(false)} style={{ flex: 1 }}>
+              Apply Filters
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', padding: 'var(--space-md)' }}>
           <div className="reports-page__field">
             <label>Start Date</label>
             <DatePickerInput value={startDate} onChange={setStartDate} placeholder="From Date" />
@@ -393,6 +642,13 @@ export default function Reports() {
           </div>
 
           <div className="reports-page__field">
+            <label htmlFor="rep-type-drawer">Report Structure</label>
+            <select id="rep-type-drawer" className="form-select" value={type} onChange={(e) => setType(e.target.value)}>
+              {REPORT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+
+          <div className="reports-page__field">
             <label>Payment Method</label>
             <Select
               styles={reactSelectStyles}
@@ -404,7 +660,7 @@ export default function Reports() {
             />
           </div>
 
-          <div className="reports-page__field">
+          {/* <div className="reports-page__field">
             <label>Supplier / Vendor</label>
             <Select
               styles={reactSelectStyles}
@@ -414,9 +670,9 @@ export default function Reports() {
               isClearable
               placeholder="All Suppliers"
             />
-          </div>
+          </div> */}
 
-          <div className="reports-page__field">
+          {/* <div className="reports-page__field">
             <label>Worker / Employee</label>
             <Select
               styles={reactSelectStyles}
@@ -426,9 +682,9 @@ export default function Reports() {
               isClearable
               placeholder="All Workers"
             />
-          </div>
+          </div> */}
 
-          <div className="reports-page__field">
+          {/* <div className="reports-page__field">
             <label>Profession</label>
             <Select
               styles={reactSelectStyles}
@@ -438,64 +694,9 @@ export default function Reports() {
               isClearable
               placeholder="All Trades"
             />
-          </div>
-
-          <div className="reports-page__field">
-            <label>Free-text Search</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Invoice, title, desc..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                style={{ paddingRight: 32 }}
-              />
-              <Search size={16} style={{ position: 'absolute', right: 10, top: 12, opacity: 0.4 }} />
-            </div>
-          </div>
-
-          <div className="reports-page__field" style={{ justifyContent: 'center' }}>
-            <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 12 }}>
-              <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />
-              <span>Include Soft-Deleted</span>
-            </label>
-          </div>
+          </div> */}
         </div>
-
-        <div
-          className="reports-page__actions"
-          style={{
-            display: "flex",
-            gap: "12px", // Adjust spacing as needed
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <Button onClick={() => handleExport('excel')} isLoading={isExporting} disabled={isExporting}>
-            <Download size={16} style={{ marginRight: 8 }} />
-            Export to Excel
-          </Button>
-
-          <Button
-            onClick={() => handleExport('pdf')}
-            isLoading={isExporting}
-            disabled={isExporting}
-            variant="secondary"
-          >
-            <Printer size={16} style={{ marginRight: 8 }} />
-            Print PDF View
-          </Button>
-
-          <Button
-            onClick={clearAllFilters}
-            variant="secondary"
-            style={{ marginLeft: "auto" }}
-          >
-            Clear Filters
-          </Button>
-        </div>
-      </Card>
+      </Drawer>
 
       {/* Report Live Preview Table */}
       <Card className="reports-page__preview-card">
@@ -517,67 +718,103 @@ export default function Reports() {
           </div>
         ) : (
           <>
-            <div className="reports-page__table-wrapper">
-              <table className="reports-page__table">
-                <thead>
-                  <tr>
-                    <th className="text-center">S.No.</th>
-                    <th className="sortable" onClick={() => handleSort('date')}>
-                      Date {renderSortIcon('date')}
-                    </th>
-                    <th className="sortable" onClick={() => handleSort('type')}>
-                      Type {renderSortIcon('type')}
-                    </th>
-                    <th className="sortable" onClick={() => handleSort('site')}>
-                      Project Site {renderSortIcon('site')}
-                    </th>
-                    <th>Description</th>
-                    <th className="sortable" onClick={() => handleSort('category')}>
-                      Category {renderSortIcon('category')}
-                    </th>
-                    <th className="sortable" onClick={() => handleSort('vendor')}>
-                      Supplier/Vendor {renderSortIcon('vendor')}
-                    </th>
-                    <th className="sortable text-center" onClick={() => handleSort('paymentMethod')}>
-                      Payment Method {renderSortIcon('paymentMethod')}
-                    </th>
-                    <th className="sortable text-right" onClick={() => handleSort('amount')}>
-                      Amount {renderSortIcon('amount')}
-                    </th>
-                    <th className="sortable text-center" onClick={() => handleSort('status')}>
-                      Status {renderSortIcon('status')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRows.map((r, i) => (
-                    <tr key={r._id || i}>
-                      <td className="text-center">{(page - 1) * rowsPerPage + i + 1}</td>
-                      <td>{formatDate(r.date)}</td>
-                      <td>
-                        <span className={`status-badge status-badge--${r.type === 'Material' ? 'paid' : r.type === 'Payment' ? 'pending' : 'inactive'}`}>
-                          {r.type}
-                        </span>
-                      </td>
-                      <td>{r.site}</td>
-                      <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{r.description}</td>
-                      <td>{r.category}</td>
-                      <td>{r.vendor}</td>
-                      <td className="text-center" style={{ textTransform: 'capitalize' }}>
-                        {r.paymentMethod === 'bankTransfer' ? 'Bank Transfer' : r.paymentMethod}
-                      </td>
-                      <td className="text-right" style={{ fontWeight: 'var(--font-weight-semibold)' }}>
-                        {formatCurrency(r.amount)}
-                      </td>
-                      <td className="text-center">
-                        <span className={`status-badge status-badge--${r.status === 'paid' || r.status === 'approved' ? 'paid' : r.status === 'pending' ? 'pending' : 'inactive'}`}>
-                          {r.status}
-                        </span>
-                      </td>
+            <div className="desktop-only">
+              <div className="reports-page__table-wrapper">
+                <table className="reports-page__table">
+                  <thead>
+                    <tr>
+                      <th className="text-center">S.No.</th>
+                      <th className="sortable" onClick={() => handleSort('date')}>
+                        Date
+                        {/* {renderSortIcon('date')} */}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('type')}>
+                        Type
+                        {/* {renderSortIcon('type')} */}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('site')}>
+                        Project Site
+                        {/* {renderSortIcon('site')} */}
+                      </th>
+                      <th>Description</th>
+                      <th className="sortable" onClick={() => handleSort('category')}>
+                        Category
+                        {/* {renderSortIcon('category')} */}
+                      </th>
+                      <th className="sortable" onClick={() => handleSort('vendor')}>
+                        Supplier/Vendor
+                        {/* {renderSortIcon('vendor')} */}
+                      </th>
+                      <th className="sortable text-center" onClick={() => handleSort('paymentMethod')}>
+                        Payment Method
+                        {/* {renderSortIcon('paymentMethod')} */}
+                      </th>
+                      <th className="sortable text-right" onClick={() => handleSort('amount')}>
+                        Amount
+                        {/* {renderSortIcon('amount')} */}
+                      </th>
+                      <th className="sortable text-center" onClick={() => handleSort('status')}>
+                        Status
+                        {/* {renderSortIcon('status')} */}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedRows.map((r, i) => (
+                      <tr key={r._id || i}>
+                        <td className="text-center">{(page - 1) * rowsPerPage + i + 1}</td>
+                        <td>{formatDate(r.date)}</td>
+                        <td>
+                          <span className={`status-badge status-badge--${r.type === 'Material' ? 'paid' : r.type === 'Payment' ? 'pending' : 'inactive'}`}>
+                            {r.type}
+                          </span>
+                        </td>
+                        <td>{r.site}</td>
+                        <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{r.description}</td>
+                        <td>{r.category}</td>
+                        <td>{r.vendor}</td>
+                        <td className="text-center" style={{ textTransform: 'capitalize' }}>
+                          {r.paymentMethod === 'bankTransfer' ? 'Bank Transfer' : r.paymentMethod}
+                        </td>
+                        <td className="text-right" style={{ fontWeight: 'var(--font-weight-semibold)' }}>
+                          {formatCurrency(r.amount)}
+                        </td>
+                        <td className="text-center">
+                          <span className={`status-badge status-badge--${r.status === 'paid' || r.status === 'approved' ? 'paid' : r.status === 'pending' ? 'pending' : 'inactive'}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mobile-only">
+              {paginatedRows.map((r, i) => (
+                <AccordionCard
+                  key={r._id || i}
+                  header={{
+                    title: `${r.type || 'Ledger'} Entry`,
+                    status: (
+                      <span className={`status-badge status-badge--${r.status === 'paid' || r.status === 'approved' ? 'paid' : r.status === 'pending' ? 'pending' : 'inactive'}`}>
+                        {r.status}
+                      </span>
+                    ),
+                    category: r.category || 'General',
+                    secondary: formatCurrency(r.amount)
+                  }}
+                  details={[
+                    { label: 'S.No.', value: String((page - 1) * rowsPerPage + i + 1) },
+                    { label: 'Date', value: formatDate(r.date) },
+                    { label: 'Project Site', value: r.site || '—' },
+                    { label: 'Supplier / Vendor', value: r.vendor || '—' },
+                    { label: 'Payment Method', value: r.paymentMethod === 'bankTransfer' ? 'Bank Transfer' : r.paymentMethod || '—' },
+                    { label: 'Description', value: r.description || '—' }
+                  ]}
+                />
+              ))}
             </div>
 
             {/* Pagination Controls */}

@@ -29,7 +29,9 @@ import {
   Calendar,
   Layers,
   Search,
+  Filter,
 } from 'lucide-react';
+import Drawer from '../../components/drawers/Drawer';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useLookups } from '../../hooks/useLookups';
@@ -114,6 +116,17 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState({
+    period: 'month',
+    siteFilter: '',
+    startDate: '',
+    endDate: '',
+    categoryFilter: '',
+    statusFilter: '',
+    searchInput: '',
+  });
 
   const { activeSites, expenseCategories, materialCategories } = useLookups();
   const dashboardParams = useMemo(() => ({
@@ -129,6 +142,13 @@ export default function Dashboard() {
   const { data, isLoading, isError, isFetching } = useDashboard(dashboardParams);
 
   useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setSearchFilter(searchInput);
     }, 300);
@@ -136,7 +156,32 @@ export default function Dashboard() {
     return () => window.clearTimeout(timeoutId);
   }, [searchInput]);
 
-  const handleClearFilters = () => {
+  const openFilterDrawer = () => {
+    setDraftFilters({
+      period,
+      siteFilter,
+      startDate,
+      endDate,
+      categoryFilter,
+      statusFilter,
+      searchInput,
+    });
+    setIsFilterDrawerOpen(true);
+  };
+
+  const handleApplyFilters = () => {
+    setPeriod(draftFilters.period);
+    setSiteFilter(draftFilters.siteFilter);
+    setStartDate(draftFilters.startDate);
+    setEndDate(draftFilters.endDate);
+    setCategoryFilter(draftFilters.categoryFilter);
+    setStatusFilter(draftFilters.statusFilter);
+    setSearchInput(draftFilters.searchInput);
+    setSearchFilter(draftFilters.searchInput);
+    setIsFilterDrawerOpen(false);
+  };
+
+  const handleClearFilters = (closeDrawer = false) => {
     setPeriod('month');
     setSiteFilter('');
     setStartDate('');
@@ -145,6 +190,16 @@ export default function Dashboard() {
     setStatusFilter('');
     setSearchInput('');
     setSearchFilter('');
+    setDraftFilters({
+      period: 'month',
+      siteFilter: '',
+      startDate: '',
+      endDate: '',
+      categoryFilter: '',
+      statusFilter: '',
+      searchInput: '',
+    });
+    if (closeDrawer) setIsFilterDrawerOpen(false);
   };
 
   const hasActiveFilters = Boolean(
@@ -208,17 +263,179 @@ export default function Dashboard() {
       </div>
 
       {/* Advanced Dashboard Filter Bar */}
-      <Card className="reports-page__filter-card" style={{ padding: 'var(--space-md)' }}>
-        <div className="dashboard__filter-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-            <label htmlFor="period-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Period Range</label>
+      {/* <Card className="reports-page__filter-card" style={{ padding: 'var(--space-md)' }}>
+        {isMobile ? (
+          <div className="dashboard__mobile-filter-row">
+            <div className="dashboard__mobile-search">
+              <input
+                id="mobile-search-input"
+                type="text"
+                className="form-input"
+                placeholder="Search..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              <Search size={16} />
+            </div>
+            <Button variant="secondary" onClick={openFilterDrawer}>
+              <Filter size={16} /> Filter
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="dashboard__filter-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
+                <label htmlFor="period-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Period Range</label>
+                <select
+                  id="period-selector"
+                  className="form-select"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  style={{ minWidth: 150 }}
+                >
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="year">This Year</option>
+                  <option value="custom">Custom Date Range</option>
+                </select>
+              </div>
+
+              {period === 'custom' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
+                    <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Start Date</label>
+                    <DatePickerInput value={startDate} onChange={setStartDate} placeholder="From Date" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
+                    <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>End Date</label>
+                    <DatePickerInput value={endDate} onChange={setEndDate} placeholder="To Date" />
+                  </div>
+                </>
+              )}
+
+              {isSuperAdmin && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
+                  <label htmlFor="site-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Project Site</label>
+                  <select
+                    id="site-selector"
+                    className="form-select"
+                    value={siteFilter}
+                    onChange={(e) => setSiteFilter(e.target.value)}
+                    style={{ minWidth: 200 }}
+                  >
+                    <option value="">All Project Sites</option>
+                    {activeSites.data?.map((s) => (
+                      <option key={s._id} value={s._id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
+                <label htmlFor="category-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Category / Profession</label>
+                <select
+                  id="category-selector"
+                  className="form-select"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  style={{ minWidth: 200 }}
+                >
+                  <option value="">All Categories</option>
+                  <optgroup label="Professions">
+                    <option value="Construction Laborers">Construction Laborers</option>
+                    <option value="Masons/Bricklayers">Masons/Bricklayers</option>
+                    <option value="Carpenters">Carpenters</option>
+                    <option value="Electricians">Electricians</option>
+                    <option value="Plumbers">Plumbers</option>
+                    <option value="Painters">Painters</option>
+                    <option value="Tile Workers">Tile Workers</option>
+                    <option value="Welders">Welders</option>
+                    <option value="Steel Fixers">Steel Fixers</option>
+                    <option value="Helpers">Helpers</option>
+                  </optgroup>
+                  <optgroup label="Material Categories">
+                    {materialCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                  </optgroup>
+                  <optgroup label="Expense Heads">
+                    {expenseCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
+                <label htmlFor="status-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Status</label>
+                <select
+                  id="status-selector"
+                  className="form-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{ minWidth: 150 }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="paid">Paid (Wages)</option>
+                  <option value="pending">Pending (Wages)</option>
+                  <option value="approved">Approved (Expenses)</option>
+                  <option value="rejected">Rejected (Expenses)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)', flex: 1, minWidth: 200 }}>
+                <label htmlFor="search-input" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Search</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="search-input"
+                    type="text"
+                    className="form-input"
+                    placeholder="Search..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    style={{ paddingRight: 32 }}
+                  />
+                  <Search size={16} style={{ position: 'absolute', right: 10, top: 12, opacity: 0.4 }} />
+                </div>
+              </div>
+
+              <div className="dashboard__filter-actions">
+                <Button variant="secondary" onClick={() => handleClearFilters()}>
+                  Reset Filters
+                </Button>
+              </div>
+            </div>
+
+            <div className="dashboard__filter-meta">
+              <span className={`dashboard__status-pill ${isFetching ? 'dashboard__status-pill--loading' : ''}`}>
+                {isFetching ? 'Refreshing dashboard…' : 'Live data'}
+              </span>
+              {hasActiveFilters && <span className="dashboard__status-pill dashboard__status-pill--secondary">Filtered view</span>}
+            </div>
+          </>
+        )}
+      </Card> */}
+
+      <Drawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        title="Dashboard Filters"
+        size="sm"
+        footer={(
+          <div className="dashboard__drawer-actions">
+            <Button variant="secondary" onClick={() => handleClearFilters(true)}>
+              Clear Filters
+            </Button>
+            <Button onClick={handleApplyFilters}>Apply Filters</Button>
+          </div>
+        )}
+      >
+        <div className="dashboard__drawer-fields">
+          <div className="dashboard__drawer-field">
+            <label htmlFor="mobile-period-selector" className="dashboard__drawer-label">Period Range</label>
             <select
-              id="period-selector"
+              id="mobile-period-selector"
               className="form-select"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              style={{ minWidth: 150 }}
+              value={draftFilters.period}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, period: e.target.value }))}
             >
               <option value="today">Today</option>
               <option value="yesterday">Yesterday</option>
@@ -229,28 +446,35 @@ export default function Dashboard() {
             </select>
           </div>
 
-          {period === 'custom' && (
+          {draftFilters.period === 'custom' && (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Start Date</label>
-                <DatePickerInput value={startDate} onChange={setStartDate} placeholder="From Date" />
+              <div className="dashboard__drawer-field">
+                <label className="dashboard__drawer-label">Start Date</label>
+                <DatePickerInput
+                  value={draftFilters.startDate}
+                  onChange={(value) => setDraftFilters((prev) => ({ ...prev, startDate: value }))}
+                  placeholder="From Date"
+                />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>End Date</label>
-                <DatePickerInput value={endDate} onChange={setEndDate} placeholder="To Date" />
+              <div className="dashboard__drawer-field">
+                <label className="dashboard__drawer-label">End Date</label>
+                <DatePickerInput
+                  value={draftFilters.endDate}
+                  onChange={(value) => setDraftFilters((prev) => ({ ...prev, endDate: value }))}
+                  placeholder="To Date"
+                />
               </div>
             </>
           )}
 
           {isSuperAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-              <label htmlFor="site-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Project Site</label>
+            <div className="dashboard__drawer-field">
+              <label htmlFor="mobile-site-selector" className="dashboard__drawer-label">Project Site</label>
               <select
-                id="site-selector"
+                id="mobile-site-selector"
                 className="form-select"
-                value={siteFilter}
-                onChange={(e) => setSiteFilter(e.target.value)}
-                style={{ minWidth: 200 }}
+                value={draftFilters.siteFilter}
+                onChange={(e) => setDraftFilters((prev) => ({ ...prev, siteFilter: e.target.value }))}
               >
                 <option value="">All Project Sites</option>
                 {activeSites.data?.map((s) => (
@@ -260,14 +484,13 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-            <label htmlFor="category-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Category / Profession</label>
+          {/* <div className="dashboard__drawer-field">
+            <label htmlFor="mobile-category-selector" className="dashboard__drawer-label">Category / Profession</label>
             <select
-              id="category-selector"
+              id="mobile-category-selector"
               className="form-select"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              style={{ minWidth: 200 }}
+              value={draftFilters.categoryFilter}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, categoryFilter: e.target.value }))}
             >
               <option value="">All Categories</option>
               <optgroup label="Professions">
@@ -289,16 +512,15 @@ export default function Dashboard() {
                 {expenseCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
               </optgroup>
             </select>
-          </div>
+          </div> */}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-            <label htmlFor="status-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Status</label>
+          <div className="dashboard__drawer-field">
+            <label htmlFor="mobile-status-selector" className="dashboard__drawer-label">Status</label>
             <select
-              id="status-selector"
+              id="mobile-status-selector"
               className="form-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ minWidth: 150 }}
+              value={draftFilters.statusFilter}
+              onChange={(e) => setDraftFilters((prev) => ({ ...prev, statusFilter: e.target.value }))}
             >
               <option value="">All Statuses</option>
               <option value="paid">Paid (Wages)</option>
@@ -308,37 +530,22 @@ export default function Dashboard() {
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)', flex: 1, minWidth: 200 }}>
-            <label htmlFor="search-input" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Search</label>
-            <div style={{ position: 'relative' }}>
+          <div className="dashboard__drawer-field">
+            <label htmlFor="mobile-search-input" className="dashboard__drawer-label">Search</label>
+            <div className="dashboard__drawer-search">
               <input
-                id="search-input"
+                id="mobile-search-input"
                 type="text"
                 className="form-input"
                 placeholder="Search..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                style={{ paddingRight: 32 }}
+                value={draftFilters.searchInput}
+                onChange={(e) => setDraftFilters((prev) => ({ ...prev, searchInput: e.target.value }))}
               />
-              <Search size={16} style={{ position: 'absolute', right: 10, top: 12, opacity: 0.4 }} />
+              <Search size={16} />
             </div>
           </div>
-
-          <div className="dashboard__filter-actions">
-            <Button variant="secondary" onClick={handleClearFilters}>
-              Reset Filters
-            </Button>
-          </div>
-
         </div>
-
-        <div className="dashboard__filter-meta">
-          <span className={`dashboard__status-pill ${isFetching ? 'dashboard__status-pill--loading' : ''}`}>
-            {isFetching ? 'Refreshing dashboard…' : 'Live data'}
-          </span>
-          {hasActiveFilters && <span className="dashboard__status-pill dashboard__status-pill--secondary">Filtered view</span>}
-        </div>
-      </Card>
+      </Drawer>
 
       <div className="dashboard__cards-grid">
         {cardItems.map((c, index) => (
@@ -366,30 +573,30 @@ export default function Dashboard() {
           </div>
           {trendData.length ? (
             <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={trendData} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorMaterials" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.16}/>
-                  <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorPayments" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6d28d9" stopOpacity={0.16}/>
-                  <stop offset="95%" stopColor="#6d28d9" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.16}/>
-                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)' }} />
-              <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ paddingBottom: 15 }} />
-              <Area type="monotone" dataKey="materials" name="Materials" stroke="var(--color-primary-500)" strokeWidth={2} fill="url(#colorMaterials)" />
-              <Area type="monotone" dataKey="payments" name="Payments" stroke="#6d28d9" strokeWidth={2} fill="url(#colorPayments)" />
-              <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#16a34a" strokeWidth={2} fill="url(#colorExpenses)" />
-            </AreaChart>
+              <AreaChart data={trendData} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorMaterials" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.16} />
+                    <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorPayments" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6d28d9" stopOpacity={0.16} />
+                    <stop offset="95%" stopColor="#6d28d9" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.16} />
+                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)' }} />
+                <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ paddingBottom: 15 }} />
+                <Area type="monotone" dataKey="materials" name="Materials" stroke="var(--color-primary-500)" strokeWidth={2} fill="url(#colorMaterials)" />
+                <Area type="monotone" dataKey="payments" name="Payments" stroke="#6d28d9" strokeWidth={2} fill="url(#colorPayments)" />
+                <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#16a34a" strokeWidth={2} fill="url(#colorExpenses)" />
+              </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="dashboard__empty-state">No trend data available for the selected filters.</div>

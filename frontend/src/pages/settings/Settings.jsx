@@ -166,7 +166,7 @@ export default function Settings() {
       if (logoFile) {
         formData.append('logo', logoFile);
       }
-      
+
       formData.append('removeLogo', removeLogo ? 'true' : 'false');
 
       await updateSystemSettingsMutation.mutateAsync(formData);
@@ -208,7 +208,7 @@ export default function Settings() {
           <form onSubmit={handleSubmit(onSubmit)}>
 
             {/* Logo upload block */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
+            {/* <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
               <div
                 style={{
                   position: 'relative',
@@ -247,7 +247,7 @@ export default function Settings() {
                   </button>
                 )}
               </div>
-            </div>
+            </div> */}
 
             <div className="form-grid">
               <FormField label="Company Name" required error={errors.companyName?.message}>
@@ -305,7 +305,7 @@ export default function Settings() {
               </FormField>
             </div>
 
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--font-size-sm)', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: 6, margin: '20px 0 12px' }}>
+            {/* <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--font-size-sm)', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: 6, margin: '20px 0 12px' }}>
               <Database size={16} /> Database Backup Preferences
             </h3>
             <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
@@ -323,7 +323,7 @@ export default function Settings() {
                   <span>Receive email reports on successful backups</span>
                 </label>
               </div>
-            </div>
+            </div> */}
 
             <Button type="submit" isLoading={updateSystemSettingsMutation.isPending || isUploading}>
               {isUploading ? 'Uploading logo...' : 'Save System Parameters'}

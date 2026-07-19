@@ -61,13 +61,23 @@ async function createPayment(data, actor, file, req) {
 }
 
 async function listPayments(queryParams, actor) {
-  const { page, limit, worker, status, startDate, endDate, sortBy, sortOrder, siteId, showDeleted } = queryParams;
+  const { page, limit, worker, status, startDate, endDate, sortBy, sortOrder, siteId, showDeleted, search } = queryParams;
   const siteFilter = resolveSiteScope(actor, siteId);
+
+  let searchFilter = {};
+  if (search) {
+    const matchingWorkers = await Worker.find({
+      name: { $regex: search, $options: 'i' }
+    }).select('_id');
+    const workerIds = matchingWorkers.map(w => w._id);
+    searchFilter = { worker: { $in: workerIds } };
+  }
 
   const query = {
     ...siteFilter,
     ...(worker && { worker }),
     ...(status && { status }),
+    ...searchFilter,
     ...buildDateRangeFilter(startDate, endDate, 'paidOn'),
   };
 

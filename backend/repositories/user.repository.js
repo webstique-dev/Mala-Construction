@@ -16,13 +16,44 @@ function findByEmail(email, includeDeleted = false) {
   return User.findOne(query);
 }
 
-async function findAllSiteAdmins({ page = 1, limit = 20, search, status, siteId, sortBy = 'createdAt', sortOrder = 'desc', includeDeleted = false } = {}) {
-  const query = { role: 'site_admin' };
+async function findAllSiteAdmins({
+  page = 1,
+  limit = 20,
+  search,
+  role,
+  assignedSite,
+  status,
+  verificationStatus,
+  createdFrom,
+  createdTo,
+  lastLoginFrom,
+  lastLoginTo,
+  department,
+  employeeId,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+  includeDeleted = false,
+} = {}) {
+  const query = {};
+  if (role) query.role = role;
   if (status) query.status = status;
-  if (siteId) query.assignedSite = siteId;
+  if (assignedSite) query.assignedSite = assignedSite;
+  if (verificationStatus) query.verificationStatus = verificationStatus;
+  if (department) query.department = { $regex: department, $options: 'i' };
+  if (employeeId) query.employeeId = { $regex: employeeId, $options: 'i' };
+  if (createdFrom || createdTo) {
+    query.createdAt = {};
+    if (createdFrom) query.createdAt.$gte = new Date(createdFrom);
+    if (createdTo) query.createdAt.$lte = new Date(createdTo);
+  }
+  if (lastLoginFrom || lastLoginTo) {
+    query.lastLoginAt = {};
+    if (lastLoginFrom) query.lastLoginAt.$gte = new Date(lastLoginFrom);
+    if (lastLoginTo) query.lastLoginAt.$lte = new Date(lastLoginTo);
+  }
   if (search) {
     const re = new RegExp(escapeRegex(search), 'i');
-    query.$or = [{ name: re }, { email: re }, { phone: re }];
+    query.$or = [{ name: re }, { email: re }, { username: re }, { employeeId: re }, { phone: re }];
   }
 
   const filterQuery = addSoftDeleteFilter(query, includeDeleted);
@@ -34,7 +65,25 @@ async function findAllSiteAdmins({ page = 1, limit = 20, search, status, siteId,
     User.countDocuments(filterQuery),
   ]);
 
-  return { items, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / limit) };
+  const activeCount = await User.countDocuments({ ...filterQuery, status: 'active' });
+  const suspendedCount = await User.countDocuments({ ...filterQuery, status: 'suspended' });
+  const siteAdminCount = await User.countDocuments({ ...filterQuery, role: 'site_admin' });
+  const superAdminCount = await User.countDocuments({ ...filterQuery, role: 'super_admin' });
+
+  return {
+    items,
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    totalPages: Math.ceil(total / limit),
+    counts: {
+      total,
+      active: activeCount,
+      suspended: suspendedCount,
+      siteAdminCount,
+      superAdminCount,
+    },
+  };
 }
 
 async function findDeleted({ page = 1, limit = 20, search, status, sortBy = 'deletedAt', sortOrder = 'desc' } = {}) {

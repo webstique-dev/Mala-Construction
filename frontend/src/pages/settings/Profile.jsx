@@ -203,7 +203,7 @@ export default function Profile() {
       const formData = new FormData();
       formData.append('settingsData', JSON.stringify(values));
       await updateSettingsMutation.mutateAsync(formData);
-      
+
       // Instantly apply theme preference
       if (values.theme === 'light' || values.theme === 'dark') {
         setTheme(values.theme);
@@ -242,7 +242,7 @@ export default function Profile() {
       });
       toast.success(res.message || 'Password changed successfully. Logging out.');
       passwordForm.reset();
-      await logout();
+      await logout({ skipConfirm: true });
     } catch (err) {
       const details = err.response?.data?.details;
       const errorMsg = (details && details.length > 0) ? details[0].message : (err.response?.data?.message || 'Failed to change password.');
@@ -276,13 +276,13 @@ export default function Profile() {
           <Settings size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
           App Preferences
         </button>
-        <button
+        {/* <button
           className={`profile-page__tab-btn ${activeTab === 'notifications' ? 'profile-page__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('notifications')}
         >
           <Bell size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
           Notifications Toggles
-        </button>
+        </button> */}
         <button
           className={`profile-page__tab-btn ${activeTab === 'security' ? 'profile-page__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('security')}
@@ -303,9 +303,9 @@ export default function Profile() {
             <Card className="profile-card">
               <h2><User size={18} /> Update Profile Information</h2>
               <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
-                
+
                 {/* Photo Upload and Preview */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
+                {/* <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
                   <div style={{ position: 'relative', width: 80, height: 80, borderRadius: '50%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
                     {avatarUrl ? (
                       <img src={avatarUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -333,7 +333,7 @@ export default function Profile() {
                       </button>
                     )}
                   </div>
-                </div>
+                </div> */}
 
                 <div className="form-grid">
                   <FormField label="Full Name" required error={profileForm.formState.errors.name?.message}>
@@ -435,7 +435,7 @@ export default function Profile() {
             <Card className="profile-card">
               <h2><Bell size={18} /> Configure Notification Switches</h2>
               <form onSubmit={notifPrefForm.handleSubmit(onNotifPrefSubmit)}>
-                
+
                 <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: 6, marginBottom: 12 }}>Notification Triggers</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                   <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -500,7 +500,7 @@ export default function Profile() {
           {/* TAB: SECURITY & SESSIONS */}
           {activeTab === 'security' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-              
+
               {/* Active Sessions list */}
               <Card className="profile-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
@@ -542,7 +542,7 @@ export default function Profile() {
               <Card className="profile-card">
                 <h2><Shield size={18} /> Change Account Password</h2>
                 <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} noValidate>
-                  
+
                   <FormField label="Current password" required error={passwordForm.formState.errors.currentPassword?.message}>
                     <div className="login-password-wrapper">
                       <input

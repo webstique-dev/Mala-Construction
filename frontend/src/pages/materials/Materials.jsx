@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, ExternalLink, RotateCcw, Search, ChevronLeft, Che
 import Button from '../../components/common/Button';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
 import DatePickerInput from '../../components/ui/DatePickerInput';
+import AccordionCard from '../../components/ui/AccordionCard';
 import MaterialFormModal from './MaterialFormModal';
 import FilterToolbar from '../../components/common/FilterToolbar';
 import { useMaterials, useDeleteMaterial, useRestoreMaterial } from '../../hooks/useMaterials';
@@ -64,6 +65,20 @@ export default function Materials() {
   const pageTotal = data?.items?.reduce((sum, item) => sum + (item.totalAmount || 0), 0) || 0;
 
   const filterConfig = [
+    // {
+    //   key: 'startDate',
+    //   label: 'Start Date',
+    //   type: 'date',
+    //   value: startDate,
+    //   onChange: (val) => { setStartDate(val); setPage(1); },
+    // },
+    // {
+    //   key: 'endDate',
+    //   label: 'End Date',
+    //   type: 'date',
+    //   value: endDate,
+    //   onChange: (val) => { setEndDate(val); setPage(1); },
+    // },
     ...(isSuperAdmin ? [{
       key: 'siteId',
       label: 'Site',
@@ -79,27 +94,6 @@ export default function Materials() {
       value: categoryFilter,
       onChange: (val) => { setCategoryFilter(val); setPage(1); },
       options: materialCategories.data?.map((c) => ({ value: c._id, label: c.name })) || [],
-    },
-    {
-      key: 'startDate',
-      label: 'Start Date',
-      type: 'date',
-      value: startDate,
-      onChange: (val) => { setStartDate(val); setPage(1); },
-    },
-    {
-      key: 'endDate',
-      label: 'End Date',
-      type: 'date',
-      value: endDate,
-      onChange: (val) => { setEndDate(val); setPage(1); },
-    },
-    {
-      key: 'showDeleted',
-      label: 'Show Deleted',
-      type: 'checkbox',
-      value: showDeleted,
-      onChange: (val) => { setShowDeleted(val); setPage(1); },
     },
   ];
 
@@ -123,7 +117,7 @@ export default function Materials() {
         <Button onClick={() => { setEditing(null); setIsFormOpen(true); }}><Plus size={18} /> Log Purchase</Button>
       </div>
 
-      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)' }}>
         <Card className="worker-kpi-card">
           <div className="worker-kpi-card__header">
             <span>Page Expenditure</span>
@@ -171,71 +165,124 @@ export default function Materials() {
 
       {!isError && !isLoading && (data?.items ?? []).length > 0 && (
         <>
-          <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="worker-payments-card__table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th>Material</th>
-                    <th>Project Site</th>
-                    <th>Supplier</th>
-                    <th>Category</th>
-                    <th>Qty / Volume</th>
-                    <th>Invoice Cost</th>
-                    <th>Date logged</th>
-                    <th>Receipt</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((r) => (
-                    <tr key={r._id} className={r.isDeleted ? 'row-deleted' : ''}>
-                      <td>
-                        <strong>{r.materialName}</strong>
-                        {r.isDeleted && <span className="sites-page__unassigned" style={{ marginLeft: 8 }}>(Deleted)</span>}
-                      </td>
-                      <td>{r.site?.name ?? '—'}</td>
-                      <td>{r.supplier?.name ?? '—'}</td>
-                      <td>
-                        <span className="status-badge" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
-                          {r.category?.name ?? 'Unclassified'}
-                        </span>
-                      </td>
-                      <td><strong>{r.quantity}/{r.unit}</strong></td>
-                      <td className="worker-payments-card__amount">{formatCurrency(r.totalAmount)}</td>
-                      <td>{formatDate(r.date)}</td>
-                      <td>
-                        {r.invoiceUpload?.url ? (
-                          <a href={r.invoiceUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target">
-                            <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> view
-                          </a>
-                        ) : '—'}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="module-page__row-actions">
-                          {r.isDeleted ? (
-                            <button
-                              type="button"
-                              className="icon-btn touch-target"
-                              onClick={() => setConfirmTarget({ type: 'restore', material: r })}
-                              title="Restore entry"
-                            >
-                              <RotateCcw size={15} />
-                            </button>
-                          ) : (
-                            <>
-                              <button type="button" className="icon-btn touch-target" onClick={() => { setEditing(r); setIsFormOpen(true); }} aria-label="Edit"><Pencil size={15} /></button>
-                              <button type="button" className="icon-btn icon-btn--danger touch-target" onClick={() => setConfirmTarget({ type: 'delete', material: r })} aria-label="Delete"><Trash2 size={15} /></button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+          <div className="desktop-only">
+            <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="worker-payments-card__table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th>Material</th>
+                      <th>Project Site</th>
+                      <th>Supplier</th>
+                      <th>Category</th>
+                      <th>Qty / Volume</th>
+                      <th>Invoice Cost</th>
+                      <th>Date logged</th>
+                      <th>Receipt</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {data.items.map((r) => (
+                      <tr key={r._id} className={r.isDeleted ? 'row-deleted' : ''}>
+                        <td>
+                          <strong>{r.materialName}</strong>
+                          {r.isDeleted && <span className="sites-page__unassigned" style={{ marginLeft: 8 }}>(Deleted)</span>}
+                        </td>
+                        <td>{r.site?.name ?? '—'}</td>
+                        <td>{r.supplier?.name ?? '—'}</td>
+                        <td>
+                          <span className="status-badge" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+                            {r.category?.name ?? 'Unclassified'}
+                          </span>
+                        </td>
+                        <td><strong>{r.quantity}/{r.unit}</strong></td>
+                        <td className="worker-payments-card__amount">{formatCurrency(r.totalAmount)}</td>
+                        <td>{formatDate(r.date)}</td>
+                        <td>
+                          {r.invoiceUpload?.url ? (
+                            <a href={r.invoiceUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target">
+                              <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> view
+                            </a>
+                          ) : '—'}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="module-page__row-actions">
+                            {r.isDeleted ? (
+                              <button
+                                type="button"
+                                className="icon-btn touch-target"
+                                onClick={() => setConfirmTarget({ type: 'restore', material: r })}
+                                title="Restore entry"
+                              >
+                                <RotateCcw size={15} />
+                              </button>
+                            ) : (
+                              <>
+                                <button type="button" className="icon-btn touch-target" onClick={() => { setEditing(r); setIsFormOpen(true); }} aria-label="Edit"><Pencil size={15} /></button>
+                                <button type="button" className="icon-btn icon-btn--danger touch-target" onClick={() => setConfirmTarget({ type: 'delete', material: r })} aria-label="Delete"><Trash2 size={15} /></button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+
+          <div className="mobile-only">
+            {data.items.map((r) => (
+              <AccordionCard
+                key={r._id}
+                isDeleted={r.isDeleted}
+                header={{
+                  title: r.materialName,
+                  status: (
+                    <span className="status-badge" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+                      {r.category?.name ?? 'Unclassified'}
+                    </span>
+                  ),
+                  category: r.site?.name,
+                  secondary: formatCurrency(r.totalAmount)
+                }}
+                details={[
+                  { label: 'Supplier / Vendor', value: r.supplier?.name ?? '—' },
+                  { label: 'Qty / Volume', value: `${r.quantity} ${r.unit}` },
+                  { label: 'Date Logged', value: formatDate(r.date) },
+                  {
+                    label: 'Receipt',
+                    value: r.invoiceUpload?.url ? (
+                      <a href={r.invoiceUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> View Receipt
+                      </a>
+                    ) : '—'
+                  }
+                ]}
+                actions={
+                  r.isDeleted ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setConfirmTarget({ type: 'restore', material: r })}
+                    >
+                      <RotateCcw size={14} /> Restore
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="secondary" onClick={() => { setEditing(r); setIsFormOpen(true); }}>
+                        <Pencil size={14} /> Edit
+                      </Button>
+                      <Button variant="danger" onClick={() => setConfirmTarget({ type: 'delete', material: r })}>
+                        <Trash2 size={14} /> Delete
+                      </Button>
+                    </>
+                  )
+                }
+              />
+            ))}
+          </div>
 
           {data.totalPages > 1 && (
             <div className="sites-page__pagination">

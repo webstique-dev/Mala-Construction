@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, X, Settings } from 'lucide-react';
 import { NAV_GROUPS } from '../constants/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import './Sidebar.css';
 
 /**
@@ -10,7 +11,7 @@ import './Sidebar.css';
  * `isCollapsed` drives the icon-only rail behavior on desktop.
  */
 export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse }) {
-  const { role, logout } = useAuth();
+  const { role, requestLogout } = useAuth();
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -46,17 +47,21 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
         <div className="sidebar__header">
           {!isCollapsed && (
             <div className="sidebar__brand">
-              <div className="sidebar__brand-mark" aria-hidden="true" />
-              <span>MALA ERP</span>
+              {/* <div className="sidebar__brand-mark" aria-hidden="true" /> */}
+              <h6 className='text-bold'>MALA <br /> CONSTRUCTIONS</h6>
             </div>
           )}
           <button
             type="button"
             className="sidebar__collapse-btn touch-target"
             onClick={onToggleCollapse}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? '»' : '«'}
+            {isCollapsed ? (
+              <ChevronRight size={18} strokeWidth={2.5} />
+            ) : (
+              <ChevronLeft size={18} strokeWidth={2.5} />
+            )}
           </button>
         </div>
         {sidebarContent}
@@ -68,7 +73,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           </NavLink>
         </div> */}
 
-        <button type="button" className="sidebar__logout touch-target" onClick={logout}>
+        <button type="button" className="sidebar__logout touch-target" onClick={requestLogout}>
           <LogOut size={20} strokeWidth={1.75} aria-hidden="true" />
           {!isCollapsed && <span>Logout</span>}
         </button>
@@ -108,7 +113,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
                 </button>
               </div>
               {sidebarContent}
-              <button type="button" className="sidebar__logout touch-target" onClick={logout}>
+              <button type="button" className="sidebar__logout touch-target" onClick={requestLogout}>
                 <LogOut size={20} strokeWidth={1.75} aria-hidden="true" />
                 <span>Logout</span>
               </button>

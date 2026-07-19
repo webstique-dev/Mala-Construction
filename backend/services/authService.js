@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const UserSession = require('../models/UserSession');
+const Site = require('../models/Site');
 const ApiError = require('../utils/ApiError');
 const {
   generateAccessToken,
@@ -11,6 +12,73 @@ const { recordActivity } = require('./auditLogService');
 const { createNotification } = require('../utils/notificationCreator');
 
 const MAX_REFRESH_TOKENS_PER_USER = 10; // caps stored sessions/devices per account
+
+async function register({
+  email,
+  password,
+  rememberMe,
+  role,
+  assignedSite,
+  name,
+  username,
+  phone,
+  acceptedTerms,
+  userAgent,
+  req,
+}) {
+  if (!acceptedTerms) {
+    throw ApiError.badRequest('You must accept the terms and conditions.');
+  }
+
+  const existingEmail = await User.findOne({ email: String(email).toLowerCase(), isDeleted: false });
+  if (existingEmail) {
+    throw ApiError.conflict('A user with this email already exists.');
+  }
+
+  const normalizedUsername = username?.trim?.() || '';
+  if (normalizedUsername) {
+    const existingUsername = await User.findOne({ username: normalizedUsername, isDeleted: false });
+    if (existingUsername) {
+      throw ApiError.conflict('This username is already taken.');
+    }
+  }
+
+  if (role === 'site_admin') {
+    if (!assignedSite) {
+      throw ApiError.badRequest('Please select a site for the Site Admin account.');
+    }
+    const site = await Site.findById(assignedSite);
+    if (!site || site.status === 'archived') {
+      throw ApiError.notFound('Selected site is not available.');
+    }
+    if (site.assignedSiteAdmin) {
+      throw ApiError.conflict('This site already has a Site Admin assigned.');
+    }
+  }
+
+  const user = await User.create({
+    name,
+    username: normalizedUsername,
+    email: String(email).toLowerCase(),
+    phone,
+    password,
+    role,
+    assignedSite: role === 'site_admin' ? assignedSite : null,
+    status: 'active',
+  });
+
+  if (role === 'site_admin' && assignedSite) {
+    await Site.findByIdAndUpdate(assignedSite, { assignedSiteAdmin: user._id });
+  }
+
+  const ipAddress = req?.ip || req?.headers['x-forwarded-for'] || 'Unknown IP';
+  const { accessToken, refreshToken, expiresAt } = await issueTokenPair(user, rememberMe, userAgent, ipAddress);
+
+  await recordActivity({ actor: user, action: 'create', entityType: 'User', entityId: user._id, req, after: { name: user.name, role: user.role, assignedSite: user.assignedSite } });
+  await createNotification({ recipient: user._id, type: 'security_alert', title: 'Account created', message: 'Your account has been created successfully.', priority: 'low' });
+
+  return { user: sanitizeUser(user), accessToken, refreshToken, refreshExpiresAt: expiresAt };
+}
 
 async function login({ email, password, rememberMe, userAgent, req }) {
   const user = await User.findOne({ email: email.toLowerCase(), isDeleted: false }).select('+password');
@@ -106,7 +174,7 @@ async function refresh({ refreshToken, userAgent }) {
 }
 
 async function logout({ refreshToken, user, req }) {
-  if (!refreshToken) return; // nothing to invalidate - treat as an already-logged-out no-op
+  if (!refreshToken || !user) return; // nothing to invalidate - treat as an already-logged-out no-op
 
   const tokenHash = hashToken(refreshToken);
   user.refreshTokens = user.refreshTokens.filter((t) => t.tokenHash !== tokenHash);

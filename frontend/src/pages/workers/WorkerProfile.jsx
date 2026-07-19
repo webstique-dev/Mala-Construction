@@ -3,6 +3,7 @@ import { ArrowLeft, Phone, MapPin, Calendar, DollarSign, Award, ShieldAlert, His
 import { useWorkerProfile } from '../../hooks/useWorkers';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import AccordionCard from '../../components/ui/AccordionCard';
 import '../../styles/operational-page.css';
 import './WorkerProfile.css';
 
@@ -147,34 +148,59 @@ export default function WorkerProfile() {
             {payments.length === 0 ? (
               <p className="worker-profile__empty">No wage disbursements recorded yet.</p>
             ) : (
-              <div className="worker-payments-card__table-wrapper">
-                <table className="worker-payments-card__table">
-                  <thead>
-                    <tr>
-                      <th>Paid Date</th>
-                      <th>Working Days</th>
-                      <th>Net Paid Salary</th>
-                      <th>Disbursement Method</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.map((p) => (
-                      <tr key={p._id}>
-                        <td>{formatDate(p.paidOn)}</td>
-                        <td><strong>{p.workingDays} days</strong></td>
-                        <td className="worker-payments-card__amount">{formatCurrency(p.netSalary)}</td>
-                        <td>{p.paymentMethod}</td>
-                        <td>
+              <>
+                <div className="desktop-only">
+                  <div className="worker-payments-card__table-wrapper">
+                    <table className="worker-payments-card__table">
+                      <thead>
+                        <tr>
+                          <th>Paid Date</th>
+                          <th>Working Days</th>
+                          <th>Net Paid Salary</th>
+                          <th>Disbursement Method</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((p) => (
+                          <tr key={p._id}>
+                            <td>{formatDate(p.paidOn)}</td>
+                            <td><strong>{p.workingDays} days</strong></td>
+                            <td className="worker-payments-card__amount">{formatCurrency(p.netSalary)}</td>
+                            <td>{p.paymentMethod}</td>
+                            <td>
+                              <span className={`status-badge status-badge--${p.status}`}>
+                                {p.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mobile-only">
+                  {payments.map((p) => (
+                    <AccordionCard
+                      key={p._id}
+                      header={{
+                        title: `Paid on ${formatDate(p.paidOn)}`,
+                        status: (
                           <span className={`status-badge status-badge--${p.status}`}>
                             {p.status}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        ),
+                        category: `${p.workingDays} days`,
+                        secondary: formatCurrency(p.netSalary)
+                      }}
+                      details={[
+                        { label: 'Disbursement Method', value: p.paymentMethod }
+                      ]}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </Card>
         </div>

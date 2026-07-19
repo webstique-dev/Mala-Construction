@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Pencil, Archive, Trash2, RotateCcw, MapPin, User, Calendar, Search, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import Button from '../../components/common/Button';
 import FilterToolbar from '../../components/common/FilterToolbar';
@@ -33,17 +33,46 @@ export default function Sites() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filters, setFilters] = useState({
+    siteName: '',
+    siteCode: '',
+    status: '',
+    country: '',
+    state: '',
+    city: '',
+    createdFrom: '',
+    createdTo: '',
+    lastUpdatedFrom: '',
+    lastUpdatedTo: '',
+    createdBy: '',
+  });
   const [editingSite, setEditingSite] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null); // { type: 'archive'|'delete'|'restore', site }
 
   const debouncedSearch = useDebouncedValue(search);
-  const { data, isLoading, isError } = useSites({
+  const queryParams = useMemo(() => ({
     page,
     limit: 9,
     search: debouncedSearch || undefined,
+    siteName: filters.siteName || undefined,
+    siteCode: filters.siteCode || undefined,
+    status: filters.status || undefined,
+    country: filters.country || undefined,
+    state: filters.state || undefined,
+    city: filters.city || undefined,
+    createdFrom: filters.createdFrom || undefined,
+    createdTo: filters.createdTo || undefined,
+    lastUpdatedFrom: filters.lastUpdatedFrom || undefined,
+    lastUpdatedTo: filters.lastUpdatedTo || undefined,
+    createdBy: filters.createdBy || undefined,
+    sortBy,
+    sortOrder,
     showDeleted,
-  });
+  }), [page, debouncedSearch, filters, showDeleted, sortBy, sortOrder]);
+  const { data, isLoading, isError } = useSites(queryParams);
   const archiveSite = useArchiveSite();
   const deleteSite = useDeleteSite();
   const restoreSite = useRestoreSite();
@@ -78,21 +107,48 @@ export default function Sites() {
     }
   };
 
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
   const filterConfig = [
-    {
-      key: 'showDeleted',
-      label: 'Show Deleted',
-      type: 'checkbox',
-      value: showDeleted,
-      onChange: (val) => { setShowDeleted(val); setPage(1); },
-    },
+    // { key: 'createdFrom', label: 'Created From', type: 'date', value: filters.createdFrom, onChange: (val) => updateFilter('createdFrom', val) },
+    // { key: 'createdTo', label: 'Created To', type: 'date', value: filters.createdTo, onChange: (val) => updateFilter('createdTo', val) },
+    // { key: 'lastUpdatedFrom', label: 'Updated From', type: 'date', value: filters.lastUpdatedFrom, onChange: (val) => updateFilter('lastUpdatedFrom', val) },
+    // { key: 'lastUpdatedTo', label: 'Updated To', type: 'date', value: filters.lastUpdatedTo, onChange: (val) => updateFilter('lastUpdatedTo', val) },
+    { key: 'siteName', label: 'Site Name', type: 'text', value: filters.siteName, onChange: (val) => updateFilter('siteName', val), placeholder: 'Filter by name' },
+    // { key: 'siteCode', label: 'Site Code', type: 'text', value: filters.siteCode, onChange: (val) => updateFilter('siteCode', val), placeholder: 'Filter by code' },
+    { key: 'status', label: 'Status', type: 'select', value: filters.status, onChange: (val) => updateFilter('status', val), options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'completed', label: 'Completed' }, { value: 'archived', label: 'Archived' }] },
+    // { key: 'country', label: 'Country', type: 'text', value: filters.country, onChange: (val) => updateFilter('country', val), placeholder: 'Country' },
+    // { key: 'state', label: 'State', type: 'text', value: filters.state, onChange: (val) => updateFilter('state', val), placeholder: 'State' },
+    // { key: 'city', label: 'City', type: 'text', value: filters.city, onChange: (val) => updateFilter('city', val), placeholder: 'City' },
+    // { key: 'createdBy', label: 'Created By', type: 'text', value: filters.createdBy, onChange: (val) => updateFilter('createdBy', val), placeholder: 'User id or name' },
   ];
 
   const handleReset = () => {
     setSearch('');
+    setFilters({
+      siteName: '',
+      siteCode: '',
+      status: '',
+      country: '',
+      state: '',
+      city: '',
+      createdFrom: '',
+      createdTo: '',
+      lastUpdatedFrom: '',
+      lastUpdatedTo: '',
+      createdBy: '',
+    });
     setShowDeleted(false);
+    setSortBy('createdAt');
+    setSortOrder('desc');
     setPage(1);
   };
+
+  const hasActiveFilters = !!search || Object.values(filters).some((value) => !!value) || showDeleted;
+  const siteCount = data?.counts?.total ?? data?.total ?? 0;
 
   return (
     <div className="sites-page">
@@ -106,13 +162,34 @@ export default function Sites() {
         </Button>
       </div>
 
-      <FilterToolbar
-        search={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1); }}
-        searchPlaceholder="Search sites by name or code..."
-        filters={filterConfig}
-        onReset={handleReset}
-      />
+      <div className="sites-page__toolbar-inline">
+        <FilterToolbar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          searchPlaceholder="Search sites by name, code, or address..."
+          filters={filterConfig}
+          onReset={handleReset}
+        />
+        {/* <div className="sites-page__sort-controls" role="group" aria-label="Sort sites">
+          <label className="sites-page__sort-label" htmlFor="site-sort-by">Sort by</label>
+          <select id="site-sort-by" className="sites-page__sort-select" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
+            <option value="name">Name</option>
+            <option value="code">Code</option>
+            <option value="createdAt">Created Date</option>
+            <option value="updatedAt">Last Updated</option>
+            <option value="startDate">Start Date</option>
+          </select>
+          <select className="sites-page__sort-select" value={sortOrder} onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}>
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div> */}
+      </div>
+
+      <div className="sites-page__summary">
+        <span>{siteCount} matching sites</span>
+        <span>{data?.counts?.active ?? 0} active</span>
+      </div>
 
       {isError && (
         <div className="sites-page__state sites-page__state--error" role="alert">
@@ -131,7 +208,7 @@ export default function Sites() {
       {!isError && !isLoading && (data?.items || []).length === 0 && (
         <div className="sites-page__state sites-page__state--empty">
           <Inbox size={32} />
-          <span>No project sites found. Create a new site to get started.</span>
+          <span>{hasActiveFilters ? 'No project sites match the selected filters.' : 'No project sites found. Create a new site to get started.'}</span>
         </div>
       )}
 

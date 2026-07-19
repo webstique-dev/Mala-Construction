@@ -5,14 +5,15 @@ const authController = require('../controllers/auth.controller');
 const authenticate = require('../middleware/authenticate');
 const validate = require('../middleware/validate');
 const { authLimiter } = require('../middleware/rateLimiter');
-const { loginSchema, changePasswordSchema } = require('../validators/auth.validators');
+const { loginSchema, registerSchema, changePasswordSchema } = require('../validators/auth.validators');
 
 // Public
 router.post('/login', authLimiter, validate({ body: loginSchema }), authController.login);
+router.post('/register', authLimiter, validate({ body: registerSchema }), authController.register);
 router.post('/refresh', authLimiter, authController.refresh);
 
 // Protected
-router.post('/logout', authController.logout);
+router.post('/logout', authenticate, authController.logout);
 router.post('/logout-all', authenticate, authController.logoutAllDevices);
 router.get('/me', authenticate, authController.me);
 router.post(

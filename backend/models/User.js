@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, trim: true },
     address: { type: String, default: '' },
     designation: { type: String, default: '' },
+    department: { type: String, default: '', trim: true, maxlength: 100 },
+    employeeId: { type: String, default: '', trim: true, maxlength: 50 },
     companyInfo: { type: String, default: '' },
     username: { type: String, default: '', trim: true, maxlength: 50 },
     biography: { type: String, default: '', trim: true, maxlength: 500 },
@@ -28,7 +30,8 @@ const userSchema = new mongoose.Schema(
       url: { type: String, default: null },
       publicId: { type: String, default: null },
     },
-    status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' },
+    verificationStatus: { type: String, enum: ['verified', 'pending', 'rejected'], default: 'pending' },
     // Hashed refresh tokens per device, so "logout from all devices" is a single array clear.
     refreshTokens: [
       {

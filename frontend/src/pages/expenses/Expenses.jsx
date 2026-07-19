@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, RotateCcw, Search, ChevronLeft, ChevronRight, Inb
 import Button from '../../components/common/Button';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
 import DatePickerInput from '../../components/ui/DatePickerInput';
+import AccordionCard from '../../components/ui/AccordionCard';
 import ExpenseFormModal from './ExpenseFormModal';
 import FilterToolbar from '../../components/common/FilterToolbar';
 import { useExpenses, useDeleteExpense, useRestoreExpense, useApproveExpense, useRejectExpense } from '../../hooks/useExpenses';
@@ -72,6 +73,20 @@ export default function Expenses() {
   const pageTotal = data?.items?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
 
   const filterConfig = [
+    {
+      key: 'startDate',
+      label: 'Start Date',
+      type: 'date',
+      value: startDate,
+      onChange: (val) => { setStartDate(val); setPage(1); },
+    },
+    {
+      key: 'endDate',
+      label: 'End Date',
+      type: 'date',
+      value: endDate,
+      onChange: (val) => { setEndDate(val); setPage(1); },
+    },
     ...(isSuperAdmin ? [{
       key: 'siteId',
       label: 'Site',
@@ -87,27 +102,6 @@ export default function Expenses() {
       value: categoryFilter,
       onChange: (val) => { setCategoryFilter(val); setPage(1); },
       options: expenseCategories.data?.map((c) => ({ value: c._id, label: c.name })) || [],
-    },
-    {
-      key: 'startDate',
-      label: 'Start Date',
-      type: 'date',
-      value: startDate,
-      onChange: (val) => { setStartDate(val); setPage(1); },
-    },
-    {
-      key: 'endDate',
-      label: 'End Date',
-      type: 'date',
-      value: endDate,
-      onChange: (val) => { setEndDate(val); setPage(1); },
-    },
-    {
-      key: 'showDeleted',
-      label: 'Show Deleted',
-      type: 'checkbox',
-      value: showDeleted,
-      onChange: (val) => { setShowDeleted(val); setPage(1); },
     },
   ];
 
@@ -131,7 +125,7 @@ export default function Expenses() {
         <Button onClick={() => { setEditing(null); setIsFormOpen(true); }}><Plus size={18} /> Add Expense</Button>
       </div>
 
-      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)' }}>
         <Card className="worker-kpi-card">
           <div className="worker-kpi-card__header">
             <span>Page Expenditure</span>
@@ -179,101 +173,173 @@ export default function Expenses() {
 
       {!isError && !isLoading && (data?.items ?? []).length > 0 && (
         <>
-          <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="worker-payments-card__table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th>Overhead Title</th>
-                    <th>Project Site</th>
-                    <th>Category</th>
-                    <th>Net Amount</th>
-                    <th>Vendor</th>
-                    <th>Overhead Date</th>
-                    <th>Payment Method</th>
-                    <th>Receipt</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((r) => (
-                    <tr key={r._id} className={r.isDeleted ? 'row-deleted' : ''}>
-                      <td>
-                        <strong>{r.title}</strong>
-                        {r.isDeleted && <span className="sites-page__unassigned" style={{ marginLeft: 8 }}>(Deleted)</span>}
-                      </td>
-                      <td>{r.site?.name ?? '—'}</td>
-                      <td>
-                        <span className="status-badge" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
-                          {r.category?.name ?? 'Uncategorized'}
-                        </span>
-                      </td>
-                      <td className="worker-payments-card__amount" style={{ color: 'var(--color-danger-500)' }}>
-                        {formatCurrency(r.amount)}
-                      </td>
-                      <td>{r.vendor || '—'}</td>
-                      <td>{formatDate(r.date)}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{r.paymentMethod}</td>
-                      <td>
-                        {r.receiptUpload?.url ? (
-                          <a href={r.receiptUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target">
-                            <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> receipt
-                          </a>
-                        ) : '—'}
-                      </td>
-                      <td>
-                        <span className={`status-badge status-badge--${r.status === 'approved' ? 'active' : r.status === 'rejected' ? 'suspended' : 'pending'}`}>
-                          {r.status || 'pending'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="module-page__row-actions">
-                          {r.isDeleted ? (
-                            <button
-                              type="button"
-                              className="icon-btn touch-target"
-                              onClick={() => setConfirmTarget({ type: 'restore', expense: r })}
-                              title="Restore overhead"
-                            >
-                              <RotateCcw size={15} />
-                            </button>
-                          ) : (
-                            <>
-                              {isSuperAdmin && (r.status === 'pending' || !r.status) && (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="icon-btn touch-target"
-                                    onClick={() => setConfirmTarget({ type: 'approve', expense: r })}
-                                    title="Approve overhead"
-                                    style={{ color: 'var(--color-success-600)' }}
-                                  >
-                                    <Check size={15} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="icon-btn touch-target"
-                                    onClick={() => setConfirmTarget({ type: 'reject', expense: r })}
-                                    title="Reject overhead"
-                                    style={{ color: 'var(--color-danger-600)' }}
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </>
-                              )}
-                              <button type="button" className="icon-btn touch-target" onClick={() => { setEditing(r); setIsFormOpen(true); }} aria-label="Edit"><Pencil size={15} /></button>
-                              <button type="button" className="icon-btn icon-btn--danger touch-target" onClick={() => setConfirmTarget({ type: 'delete', expense: r })} aria-label="Delete"><Trash2 size={15} /></button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+          <div className="desktop-only">
+            <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="worker-payments-card__table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th>Overhead Title</th>
+                      <th>Project Site</th>
+                      <th>Category</th>
+                      <th>Net Amount</th>
+                      <th>Vendor</th>
+                      <th>Overhead Date</th>
+                      <th>Payment Method</th>
+                      <th>Receipt</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {data.items.map((r) => (
+                      <tr key={r._id} className={r.isDeleted ? 'row-deleted' : ''}>
+                        <td>
+                          <strong>{r.title}</strong>
+                          {r.isDeleted && <span className="sites-page__unassigned" style={{ marginLeft: 8 }}>(Deleted)</span>}
+                        </td>
+                        <td>{r.site?.name ?? '—'}</td>
+                        <td>
+                          <span className="status-badge" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+                            {r.category?.name ?? 'Uncategorized'}
+                          </span>
+                        </td>
+                        <td className="worker-payments-card__amount" style={{ color: 'var(--color-danger-500)' }}>
+                          {formatCurrency(r.amount)}
+                        </td>
+                        <td>{r.vendor || '—'}</td>
+                        <td>{formatDate(r.date)}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{r.paymentMethod}</td>
+                        <td>
+                          {r.receiptUpload?.url ? (
+                            <a href={r.receiptUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target">
+                              <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> receipt
+                            </a>
+                          ) : '—'}
+                        </td>
+                        <td>
+                          <span className={`status-badge status-badge--${r.status === 'approved' ? 'active' : r.status === 'rejected' ? 'suspended' : 'pending'}`}>
+                            {r.status || 'pending'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="module-page__row-actions">
+                            {r.isDeleted ? (
+                              <button
+                                type="button"
+                                className="icon-btn touch-target"
+                                onClick={() => setConfirmTarget({ type: 'restore', expense: r })}
+                                title="Restore overhead"
+                              >
+                                <RotateCcw size={15} />
+                              </button>
+                            ) : (
+                              <>
+                                {isSuperAdmin && (r.status === 'pending' || !r.status) && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="icon-btn touch-target"
+                                      onClick={() => setConfirmTarget({ type: 'approve', expense: r })}
+                                      title="Approve overhead"
+                                      style={{ color: 'var(--color-success-600)' }}
+                                    >
+                                      <Check size={15} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="icon-btn touch-target"
+                                      onClick={() => setConfirmTarget({ type: 'reject', expense: r })}
+                                      title="Reject overhead"
+                                      style={{ color: 'var(--color-danger-600)' }}
+                                    >
+                                      <X size={15} />
+                                    </button>
+                                  </>
+                                )}
+                                <button type="button" className="icon-btn touch-target" onClick={() => { setEditing(r); setIsFormOpen(true); }} aria-label="Edit"><Pencil size={15} /></button>
+                                <button type="button" className="icon-btn icon-btn--danger touch-target" onClick={() => setConfirmTarget({ type: 'delete', expense: r })} aria-label="Delete"><Trash2 size={15} /></button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+
+          <div className="mobile-only">
+            {data.items.map((r) => (
+              <AccordionCard
+                key={r._id}
+                isDeleted={r.isDeleted}
+                header={{
+                  title: r.title,
+                  status: (
+                    <span className={`status-badge status-badge--${r.status === 'approved' ? 'active' : r.status === 'rejected' ? 'suspended' : 'pending'}`}>
+                      {r.status || 'pending'}
+                    </span>
+                  ),
+                  category: r.category?.name ?? 'Uncategorized',
+                  secondary: formatCurrency(r.amount)
+                }}
+                details={[
+                  { label: 'Project Site', value: r.site?.name ?? '—' },
+                  { label: 'Supplier / Vendor', value: r.vendor || '—' },
+                  { label: 'Expense Date', value: formatDate(r.date) },
+                  { label: 'Payment Method', value: r.paymentMethod },
+                  {
+                    label: 'Receipt',
+                    value: r.receiptUpload?.url ? (
+                      <a href={r.receiptUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> View Receipt
+                      </a>
+                    ) : '—'
+                  }
+                ]}
+                actions={
+                  r.isDeleted ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setConfirmTarget({ type: 'restore', expense: r })}
+                    >
+                      <RotateCcw size={14} /> Restore
+                    </Button>
+                  ) : (
+                    <>
+                      {isSuperAdmin && (r.status === 'pending' || !r.status) && (
+                        <>
+                          <Button
+                            variant="secondary"
+                            onClick={() => setConfirmTarget({ type: 'approve', expense: r })}
+                            style={{ color: 'var(--color-success-600)' }}
+                          >
+                            <Check size={14} /> Approve
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => setConfirmTarget({ type: 'reject', expense: r })}
+                            style={{ color: 'var(--color-danger-600)' }}
+                          >
+                            <X size={14} /> Reject
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="secondary" onClick={() => { setEditing(r); setIsFormOpen(true); }}>
+                        <Pencil size={14} /> Edit
+                      </Button>
+                      <Button variant="danger" onClick={() => setConfirmTarget({ type: 'delete', expense: r })}>
+                        <Trash2 size={14} /> Delete
+                      </Button>
+                    </>
+                  )
+                }
+              />
+            ))}
+          </div>
 
           {data.totalPages > 1 && (
             <div className="sites-page__pagination">

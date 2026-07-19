@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, Mail, Phone, MapPin, RotateCcw, Search, ChevronLeft, ChevronRight, Inbox, KeyRound, ShieldAlert, ShieldX, ShieldCheck } from 'lucide-react';
 import Button from '../../components/common/Button';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
@@ -6,6 +6,7 @@ import SiteAdminFormModal from './SiteAdminFormModal';
 import TempPasswordModal from './TempPasswordModal';
 import FilterToolbar from '../../components/common/FilterToolbar';
 import { useSiteAdmins, useDeleteSiteAdmin, useRestoreSiteAdmin, useResetSiteAdminPassword, useSetSiteAdminStatus } from '../../hooks/useSiteAdmins';
+import { useSites } from '../../hooks/useSites';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useToast } from '../../contexts/ToastContext';
 import Card from '../../components/ui/Card';
@@ -36,6 +37,20 @@ export default function SiteAdmins() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filters, setFilters] = useState({
+    role: '',
+    assignedSite: '',
+    status: '',
+    verificationStatus: '',
+    createdFrom: '',
+    createdTo: '',
+    lastLoginFrom: '',
+    lastLoginTo: '',
+    department: '',
+    employeeId: '',
+  });
   const [editing, setEditing] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [newAdminCreds, setNewAdminCreds] = useState(null);
@@ -43,12 +58,26 @@ export default function SiteAdmins() {
   const [confirmTarget, setConfirmTarget] = useState(null); // { type: 'delete' | 'restore' | 'suspend' | 'activate' | 'resetPassword', admin }
 
   const debouncedSearch = useDebouncedValue(search);
-  const { data, isLoading, isError } = useSiteAdmins({
+  const queryParams = useMemo(() => ({
     page,
     limit: 9,
     search: debouncedSearch || undefined,
+    role: filters.role || undefined,
+    assignedSite: filters.assignedSite || undefined,
+    status: filters.status || undefined,
+    verificationStatus: filters.verificationStatus || undefined,
+    createdFrom: filters.createdFrom || undefined,
+    createdTo: filters.createdTo || undefined,
+    lastLoginFrom: filters.lastLoginFrom || undefined,
+    lastLoginTo: filters.lastLoginTo || undefined,
+    department: filters.department || undefined,
+    employeeId: filters.employeeId || undefined,
+    sortBy,
+    sortOrder,
     showDeleted,
-  });
+  }), [page, debouncedSearch, filters, showDeleted, sortBy, sortOrder]);
+  const { data, isLoading, isError } = useSiteAdmins(queryParams);
+  const { data: sitesData } = useSites({ limit: 100, sortBy: 'name', sortOrder: 'asc' });
   const deleteAdmin = useDeleteSiteAdmin();
   const restoreAdmin = useRestoreSiteAdmin();
   const resetPassword = useResetSiteAdminPassword();
@@ -81,21 +110,46 @@ export default function SiteAdmins() {
     }
   };
 
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
   const filterConfig = [
-    {
-      key: 'showDeleted',
-      label: 'Show Deleted',
-      type: 'checkbox',
-      value: showDeleted,
-      onChange: (val) => { setShowDeleted(val); setPage(1); },
-    },
+    // { key: 'createdFrom', label: 'Created From', type: 'date', value: filters.createdFrom, onChange: (val) => updateFilter('createdFrom', val) },
+    // { key: 'createdTo', label: 'Created To', type: 'date', value: filters.createdTo, onChange: (val) => updateFilter('createdTo', val) },
+    // { key: 'lastLoginFrom', label: 'Last Login From', type: 'date', value: filters.lastLoginFrom, onChange: (val) => updateFilter('lastLoginFrom', val) },
+    // { key: 'lastLoginTo', label: 'Last Login To', type: 'date', value: filters.lastLoginTo, onChange: (val) => updateFilter('lastLoginTo', val) },
+    { key: 'assignedSite', label: 'Assigned Site', type: 'select', value: filters.assignedSite, onChange: (val) => updateFilter('assignedSite', val), options: (sitesData?.items || []).map((site) => ({ value: site._id, label: `${site.name} (${site.code})` })) },
+    { key: 'status', label: 'Status', type: 'select', value: filters.status, onChange: (val) => updateFilter('status', val), options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'suspended', label: 'Suspended' }] },
+    // { key: 'verificationStatus', label: 'Verification Status', type: 'select', value: filters.verificationStatus, onChange: (val) => updateFilter('verificationStatus', val), options: [{ value: 'verified', label: 'Verified' }, { value: 'pending', label: 'Pending' }, { value: 'rejected', label: 'Rejected' }] },
+    // { key: 'employeeId', label: 'Employee ID', type: 'text', value: filters.employeeId, onChange: (val) => updateFilter('employeeId', val), placeholder: 'Employee ID' },
+    // { key: 'role', label: 'Role', type: 'select', value: filters.role, onChange: (val) => updateFilter('role', val), options: [{ value: 'super_admin', label: 'Super Admin' }, { value: 'site_admin', label: 'Site Admin' }] },
+    // { key: 'department', label: 'Department', type: 'text', value: filters.department, onChange: (val) => updateFilter('department', val), placeholder: 'Department' },
   ];
 
   const handleReset = () => {
     setSearch('');
+    setFilters({
+      role: '',
+      assignedSite: '',
+      status: '',
+      verificationStatus: '',
+      createdFrom: '',
+      createdTo: '',
+      lastLoginFrom: '',
+      lastLoginTo: '',
+      department: '',
+      employeeId: '',
+    });
     setShowDeleted(false);
+    setSortBy('createdAt');
+    setSortOrder('desc');
     setPage(1);
   };
+
+  const hasActiveFilters = !!search || Object.values(filters).some((value) => !!value) || showDeleted;
+  const counts = data?.counts || {};
 
   return (
     <div className="module-page">
@@ -109,13 +163,35 @@ export default function SiteAdmins() {
         </Button>
       </div>
 
-      <FilterToolbar
-        search={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1); }}
-        searchPlaceholder="Search supervisors..."
-        filters={filterConfig}
-        onReset={handleReset}
-      />
+      <div className="sites-page__toolbar-inline">
+        <FilterToolbar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          searchPlaceholder="Search supervisors by name, email, username, or employee ID..."
+          filters={filterConfig}
+          onReset={handleReset}
+        />
+        {/* <div className="sites-page__sort-controls" role="group" aria-label="Sort supervisors">
+          <label className="sites-page__sort-label" htmlFor="supervisor-sort-by">Sort by</label>
+          <select id="supervisor-sort-by" className="sites-page__sort-select" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
+            <option value="name">Name</option>
+            <option value="email">Email</option>
+            <option value="createdAt">Created Date</option>
+            <option value="lastLoginAt">Last Login</option>
+          </select>
+          <select className="sites-page__sort-select" value={sortOrder} onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}>
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div> */}
+      </div>
+
+      <div className="sites-page__summary">
+        <span>{counts.total ?? 0} matching supervisors</span>
+        <span>{counts.active ?? 0} active</span>
+        <span>{counts.siteAdminCount ?? 0} site admins</span>
+        <span>{counts.superAdminCount ?? 0} super admins</span>
+      </div>
 
       {newAdminCreds && (
         <Card style={{ backgroundColor: 'var(--color-primary-50)', border: '1px solid var(--color-primary-300)', padding: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
@@ -147,7 +223,7 @@ export default function SiteAdmins() {
       {!isError && !isLoading && (data?.items ?? []).length === 0 && (
         <div className="sites-page__state sites-page__state--empty">
           <Inbox size={32} />
-          <span>No supervisors listed. Create a new supervisor file.</span>
+          <span>{hasActiveFilters ? 'No supervisors match the selected filters.' : 'No supervisors listed. Create a new supervisor file.'}</span>
         </div>
       )}
 

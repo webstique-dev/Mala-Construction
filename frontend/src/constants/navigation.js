@@ -45,13 +45,13 @@ export const NAV_GROUPS = [
     items: [
       { label: 'Reports', to: '/reports', icon: FileBarChart2, roles: null },
       { label: 'Activity Logs', to: '/activity-logs', icon: ScrollText, roles: null },
-      { label: 'Notifications', to: '/notifications', icon: Bell, roles: null },
+      // { label: 'Notifications', to: '/notifications', icon: Bell, roles: null },
     ],
   },
   {
     label: null,
     items: [
-      { label: 'Settings', to: '/settings', icon: Settings, roles: [ROLES.SUPER_ADMIN] },
+      // { label: 'Settings', to: '/settings', icon: Settings, roles: [ROLES.SUPER_ADMIN] },
       { label: 'Profile', to: '/profile', icon: User, roles: null },
     ],
   },

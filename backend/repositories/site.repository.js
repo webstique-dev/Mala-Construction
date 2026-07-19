@@ -19,11 +19,53 @@ function findByCode(code, includeDeleted = false) {
  * Paginated, searchable, filterable list - shared shape for every list endpoint in the app.
  * @param {object} opts - { page, limit, search, status, sortBy, sortOrder, includeDeleted }
  */
-async function findAll({ page = 1, limit = 20, search, status, sortBy = 'createdAt', sortOrder = 'desc', includeDeleted = false } = {}) {
+async function findAll({
+  page = 1,
+  limit = 20,
+  search,
+  status,
+  siteName,
+  siteCode,
+  country,
+  state,
+  city,
+  createdFrom,
+  createdTo,
+  lastUpdatedFrom,
+  lastUpdatedTo,
+  createdBy,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+  includeDeleted = false,
+} = {}) {
   const query = {};
   if (status) query.status = status;
-  if (search) query.$text = { $search: search };
-  
+  if (siteName) query.name = { $regex: siteName, $options: 'i' };
+  if (siteCode) query.code = { $regex: siteCode, $options: 'i' };
+  if (country) query.country = { $regex: country, $options: 'i' };
+  if (state) query.state = { $regex: state, $options: 'i' };
+  if (city) query.city = { $regex: city, $options: 'i' };
+  if (createdFrom || createdTo) {
+    query.createdAt = {};
+    if (createdFrom) query.createdAt.$gte = new Date(createdFrom);
+    if (createdTo) query.createdAt.$lte = new Date(createdTo);
+  }
+  if (lastUpdatedFrom || lastUpdatedTo) {
+    query.updatedAt = {};
+    if (lastUpdatedFrom) query.updatedAt.$gte = new Date(lastUpdatedFrom);
+    if (lastUpdatedTo) query.updatedAt.$lte = new Date(lastUpdatedTo);
+  }
+  if (createdBy) {
+    query.createdBy = { $regex: createdBy, $options: 'i' };
+  }
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { code: { $regex: search, $options: 'i' } },
+      { address: { $regex: search, $options: 'i' } },
+    ];
+  }
+
   const filterQuery = addSoftDeleteFilter(query, includeDeleted);
 
   const skip = (page - 1) * limit;
@@ -34,7 +76,11 @@ async function findAll({ page = 1, limit = 20, search, status, sortBy = 'created
     Site.countDocuments(filterQuery),
   ]);
 
-  return { items, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / limit) };
+  const activeCount = await Site.countDocuments({ ...filterQuery, status: 'active' });
+  const completedCount = await Site.countDocuments({ ...filterQuery, status: 'completed' });
+  const archivedCount = await Site.countDocuments({ ...filterQuery, status: 'archived' });
+
+  return { items, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / limit), counts: { total, active: activeCount, completed: completedCount, archived: archivedCount } };
 }
 
 async function findDeleted({ page = 1, limit = 20, search, status, sortBy = 'deletedAt', sortOrder = 'desc' } = {}) {

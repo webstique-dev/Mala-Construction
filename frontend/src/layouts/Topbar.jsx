@@ -55,6 +55,7 @@ export default function Topbar({ onOpenSidebar }) {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const dropdownRef = useRef(null);
 
   const { data: unreadData } = useUnreadNotificationsCount();
@@ -86,12 +87,31 @@ export default function Topbar({ onOpenSidebar }) {
         <Menu size={22} />
       </button>
 
-      <div className="topbar__search">
+      <div className={`topbar__search ${isSearchExpanded ? 'topbar__search--expanded' : ''}`}>
         <Search size={16} aria-hidden="true" />
         <GlobalSearch />
+        {isSearchExpanded && (
+          <button
+            type="button"
+            className="topbar__search-close touch-target"
+            onClick={() => setIsSearchExpanded(false)}
+            aria-label="Close search"
+            style={{ background: 'transparent', border: 'none', color: 'var(--color-text-secondary)', marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
+          >
+            <XCircle size={18} />
+          </button>
+        )}
       </div>
 
       <div className="topbar__actions">
+        {/* <button
+          type="button"
+          className="topbar__icon-btn topbar__search-toggle touch-target"
+          onClick={() => setIsSearchExpanded(true)}
+          aria-label="Open search"
+        >
+          <Search size={16} />
+        </button> */}
         <button
           type="button"
           className="topbar__icon-btn touch-target"
@@ -102,7 +122,7 @@ export default function Topbar({ onOpenSidebar }) {
         </button>
 
         {/* Bell dropdown container */}
-        <div className="topbar__notifications-container" ref={dropdownRef}>
+        {/* <div className="topbar__notifications-container" ref={dropdownRef}>
           <button
             type="button"
             className="topbar__icon-btn touch-target"
@@ -172,11 +192,11 @@ export default function Topbar({ onOpenSidebar }) {
               </div>
             </div>
           )}
-        </div>
+        </div> */}
 
-        <button type="button" className="topbar__icon-btn touch-target" aria-label="Messages">
-          <Mail size={16} />
-        </button>
+        {/* <button type="button" className="topbar__icon-btn touch-target" aria-label="Messages"> */}
+        {/* <Mail size={16} /> */}
+        {/* </button> */}
 
         <div className="topbar__user">
           <div className="topbar__avatar">

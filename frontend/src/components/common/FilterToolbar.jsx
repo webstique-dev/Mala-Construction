@@ -75,6 +75,22 @@ export default function FilterToolbar({
       );
     }
 
+    if (f.type === 'text') {
+      return (
+        <div className="filter-field" key={f.key}>
+          <label htmlFor={`filter-${f.key}`} className="filter-field__label">{f.label}</label>
+          <input
+            id={`filter-${f.key}`}
+            type="text"
+            className="filter-text-input"
+            value={f.value || ''}
+            onChange={(e) => f.onChange(e.target.value)}
+            placeholder={f.placeholder || f.label}
+          />
+        </div>
+      );
+    }
+
     if (f.type === 'date') {
       return (
         <div className="filter-field" key={f.key}>
@@ -89,20 +105,20 @@ export default function FilterToolbar({
       );
     }
 
-    // if (f.type === 'checkbox') {
-    //   return (
-    //     <div className="filter-field filter-field--checkbox" key={f.key}>
-    //       <label className="checkbox-filter">
-    //         <input
-    //           type="checkbox"
-    //           checked={!!f.value}
-    //           onChange={(e) => f.onChange(e.target.checked)}
-    //         />
-    //         {f.label}
-    //       </label>
-    //     </div>
-    //   );
-    // }
+    if (f.type === 'checkbox') {
+      return (
+        <div className="filter-field filter-field--checkbox" key={f.key}>
+          <label className="checkbox-filter">
+            <input
+              type="checkbox"
+              checked={!!f.value}
+              onChange={(e) => f.onChange(e.target.checked)}
+            />
+            {f.label}
+          </label>
+        </div>
+      );
+    }
 
     return null;
   };
@@ -112,25 +128,28 @@ export default function FilterToolbar({
       <div className="filter-toolbar">
         {/* Search Field */}
         {onSearchChange && (
-          <div className="filter-toolbar__search">
-            <Search size={16} className="filter-toolbar__search-icon" />
-            <input
-              type="search"
-              placeholder={searchPlaceholder}
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              aria-label="Search"
-            />
-            {search && (
-              <button
-                type="button"
-                className="filter-toolbar__clear-search touch-target"
-                onClick={() => onSearchChange('')}
-                aria-label="Clear search"
-              >
-                <X size={14} />
-              </button>
-            )}
+          <div className="filter-field filter-toolbar__search-field">
+            <label className="filter-field__label">Search</label>
+            <div className="filter-toolbar__search">
+              <Search size={16} className="filter-toolbar__search-icon" />
+              <input
+                type="search"
+                placeholder={searchPlaceholder}
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                aria-label="Search"
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="filter-toolbar__clear-search touch-target"
+                  onClick={() => onSearchChange('')}
+                  aria-label="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -145,7 +164,7 @@ export default function FilterToolbar({
                 onClick={onReset}
               >
                 <RotateCcw size={14} />
-                <span>Reset</span>
+                <span>Clear Filters</span>
               </button>
             )}
           </div>

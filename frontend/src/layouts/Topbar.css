@@ -284,3 +284,50 @@
 .topbar__dropdown-link:hover {
   text-decoration: underline;
 }
+
+/* Toggle Search Button */
+.topbar__search-toggle {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0 var(--space-md);
+    gap: var(--space-xs);
+  }
+  .topbar__search {
+    display: none;
+  }
+  .topbar__search--expanded {
+    display: flex !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    z-index: 10;
+    padding: 0 var(--space-md);
+    background-color: var(--color-surface);
+  }
+  .topbar__search-toggle {
+    display: flex;
+  }
+  /* Notifications dropdown layout on tiny screens */
+  .topbar__dropdown {
+    right: -80px;
+    width: 290px;
+  }
+}
+
+@media (max-width: 320px) {
+  .topbar {
+    padding: 0 var(--space-xs);
+  }
+  .topbar__dropdown {
+    right: -100px;
+    width: 270px;
+  }
+}

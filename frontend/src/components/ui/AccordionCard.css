@@ -1,0 +1,181 @@
+.accordion-card {
+  margin-bottom: var(--space-sm);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.accordion-card:hover {
+  border-color: var(--color-primary-300);
+  box-shadow: var(--shadow-md);
+}
+
+.accordion-card--expanded {
+  border-color: var(--color-primary-500);
+}
+
+.accordion-card--deleted {
+  opacity: 0.65;
+  background-color: var(--color-steel-50);
+}
+
+/* Header style - resets button defaults */
+.accordion-card__header {
+  display: block;
+  width: 100%;
+  /* padding: var(--space-md); */
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+}
+
+.accordion-card__header:focus-visible {
+  background-color: var(--color-steel-50);
+}
+
+[data-theme='dark'] .accordion-card__header:focus-visible {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.accordion-card__header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.accordion-card__header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.accordion-card__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accordion-card__subtitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.accordion-card__category {
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-steel-100);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+[data-theme='dark'] .accordion-card__category {
+  background-color: var(--color-steel-800);
+}
+
+.accordion-card__secondary {
+  position: relative;
+}
+
+/* Header Right - status & chevron */
+.accordion-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.accordion-card__chevron {
+  color: var(--color-text-secondary);
+  transition: transform var(--duration-normal) var(--ease-standard);
+  flex-shrink: 0;
+}
+
+.accordion-card__chevron--expanded {
+  transform: rotate(180deg);
+}
+
+/* Collapse wrapper */
+.accordion-card__collapse-wrapper {
+  overflow: hidden;
+}
+
+/* Details grid */
+.accordion-card__body {
+  padding: 0 var(--space-md) var(--space-md) var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.accordion-card__details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md) var(--space-sm);
+  padding: var(--space-md) 0;
+}
+
+.accordion-card__detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.accordion-card__detail-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.accordion-card__detail-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* Divider inside details if needed */
+.accordion-card__actions-wrapper {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
+  margin-top: var(--space-xs);
+}
+
+.accordion-card__actions {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.accordion-card__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--font-size-sm);
+  min-height: 40px;
+}
+
+/* On very small screens, stack actions vertically as full-width blocks */
+@media (max-width: 375px) {
+  .accordion-card__actions {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .accordion-card__actions>* {
+    width: 100% !important;
+    justify-content: center;
+  }
+}

@@ -6,6 +6,7 @@ const siteSchema = new mongoose.Schema(
     code: { type: String, required: true, unique: true, trim: true, uppercase: true },
     address: { type: String, trim: true },
     state: { type: String, trim: true },
+    city: { type: String, trim: true },
     country: { type: String, trim: true, default: 'India' },
     startDate: { type: Date },
     status: { type: String, enum: ['active', 'completed', 'archived'], default: 'active' },

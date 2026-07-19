@@ -12,6 +12,7 @@ import { useLookups } from '../../hooks/useLookups';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import AccordionCard from '../../components/ui/AccordionCard';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
 
@@ -20,6 +21,8 @@ export default function Payments() {
   const [page, setPage] = useState(1);
   const [siteFilter, setSiteFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [showDeleted, setShowDeleted] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -31,8 +34,11 @@ export default function Payments() {
   const { data, isLoading, isError } = usePayments({
     page,
     limit: 10,
+    search: debouncedSearch,
     siteId: isSuperAdmin ? siteFilter || undefined : siteId,
     status: statusFilter || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     showDeleted,
   });
   const deletePayment = useDeletePayment();
@@ -75,6 +81,20 @@ export default function Payments() {
   const pageTotal = data?.items?.reduce((sum, item) => sum + (item.netSalary || 0), 0) || 0;
 
   const filterConfig = [
+    {
+      key: 'startDate',
+      label: 'Start Date',
+      type: 'date',
+      value: startDate,
+      onChange: (val) => { setStartDate(val); setPage(1); },
+    },
+    {
+      key: 'endDate',
+      label: 'End Date',
+      type: 'date',
+      value: endDate,
+      onChange: (val) => { setEndDate(val); setPage(1); },
+    },
     ...(isSuperAdmin ? [{
       key: 'siteId',
       label: 'Site',
@@ -94,19 +114,14 @@ export default function Payments() {
         { value: 'pending', label: 'Pending' },
       ],
     },
-    {
-      key: 'showDeleted',
-      label: 'Show Deleted',
-      type: 'checkbox',
-      value: showDeleted,
-      onChange: (val) => { setShowDeleted(val); setPage(1); },
-    },
   ];
 
   const handleReset = () => {
     setSearch('');
     setSiteFilter('');
     setStatusFilter('');
+    setStartDate('');
+    setEndDate('');
     setShowDeleted(false);
     setPage(1);
   };
@@ -121,7 +136,7 @@ export default function Payments() {
         <Button onClick={() => { setEditing(null); setIsFormOpen(true); }}><Plus size={18} /> Record Payment</Button>
       </div>
 
-      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)' }}>
         <Card className="worker-kpi-card">
           <div className="worker-kpi-card__header">
             <span>Page Disbursements</span>
@@ -169,68 +184,117 @@ export default function Payments() {
 
       {!isError && !isLoading && (data?.items ?? []).length > 0 && (
         <>
-          <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="worker-payments-card__table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th>Worker File</th>
-                    <th>Project Site</th>
-                    <th>Days</th>
-                    <th>Salary Rate</th>
-                    <th>Net Amount</th>
-                    <th>Date Paid</th>
-                    <th>Method</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((r) => (
-                    <tr key={r._id} className={r.isDeleted ? 'row-deleted' : ''}>
-                      <td>
-                        <strong>{r.worker?.name ?? '—'}</strong>
-                        {r.isDeleted && <span className="sites-page__unassigned" style={{ marginLeft: 8 }}>(Deleted)</span>}
-                      </td>
-                      <td>{r.site?.name ?? '—'}</td>
-                      <td><strong>{r.workingDays} days</strong></td>
-                      <td>{formatCurrency(r.dailyWage)} / day</td>
-                      <td className="worker-payments-card__amount" style={{ color: 'var(--color-success-500)' }}>
-                        {formatCurrency(r.netSalary)}
-                      </td>
-                      <td>{formatDate(r.paidOn)}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{r.paymentMethod}</td>
-                      <td>
-                        <span className={`status-badge status-badge--${r.status}`}>
-                          {r.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="module-page__row-actions">
-                          {r.isDeleted ? (
-                            <button
-                              type="button"
-                              className="icon-btn touch-target"
-                              onClick={() => setConfirmTarget({ type: 'restore', payment: r })}
-                              title="Restore Payment"
-                            >
-                              <RotateCcw size={15} />
-                            </button>
-                          ) : (
-                            <>
-                              <button type="button" className="icon-btn touch-target" onClick={() => printReceipt(r)} aria-label="Print Invoice"><Printer size={15} /></button>
-                              <button type="button" className="icon-btn touch-target" onClick={() => { setEditing(r); setIsFormOpen(true); }} aria-label="Edit"><Pencil size={15} /></button>
-                              <button type="button" className="icon-btn icon-btn--danger touch-target" onClick={() => setConfirmTarget({ type: 'delete', payment: r })} aria-label="Delete"><Trash2 size={15} /></button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+          <div className="desktop-only">
+            <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="worker-payments-card__table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th>Worker File</th>
+                      <th>Project Site</th>
+                      <th>Days</th>
+                      <th>Salary Rate</th>
+                      <th>Net Amount</th>
+                      <th>Date Paid</th>
+                      <th>Method</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {data.items.map((r) => (
+                      <tr key={r._id} className={r.isDeleted ? 'row-deleted' : ''}>
+                        <td>
+                          <strong>{r.worker?.name ?? '—'}</strong>
+                          {r.isDeleted && <span className="sites-page__unassigned" style={{ marginLeft: 8 }}>(Deleted)</span>}
+                        </td>
+                        <td>{r.site?.name ?? '—'}</td>
+                        <td><strong>{r.workingDays} days</strong></td>
+                        <td>{formatCurrency(r.dailyWage)} / day</td>
+                        <td className="worker-payments-card__amount" style={{ color: 'var(--color-success-500)' }}>
+                          {formatCurrency(r.netSalary)}
+                        </td>
+                        <td>{formatDate(r.paidOn)}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{r.paymentMethod}</td>
+                        <td>
+                          <span className={`status-badge status-badge--${r.status}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="module-page__row-actions">
+                            {r.isDeleted ? (
+                              <button
+                                type="button"
+                                className="icon-btn touch-target"
+                                onClick={() => setConfirmTarget({ type: 'restore', payment: r })}
+                                title="Restore Payment"
+                              >
+                                <RotateCcw size={15} />
+                              </button>
+                            ) : (
+                              <>
+                                <button type="button" className="icon-btn touch-target" onClick={() => printReceipt(r)} aria-label="Print Invoice"><Printer size={15} /></button>
+                                <button type="button" className="icon-btn touch-target" onClick={() => { setEditing(r); setIsFormOpen(true); }} aria-label="Edit"><Pencil size={15} /></button>
+                                <button type="button" className="icon-btn icon-btn--danger touch-target" onClick={() => setConfirmTarget({ type: 'delete', payment: r })} aria-label="Delete"><Trash2 size={15} /></button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+
+          <div className="mobile-only">
+            {data.items.map((r) => (
+              <AccordionCard
+                key={r._id}
+                isDeleted={r.isDeleted}
+                header={{
+                  title: r.worker?.name ?? '—',
+                  status: (
+                    <span className={`status-badge status-badge--${r.status}`}>
+                      {r.status}
+                    </span>
+                  ),
+                  category: r.site?.name,
+                  secondary: formatCurrency(r.netSalary)
+                }}
+                details={[
+                  { label: 'Days Worked', value: `${r.workingDays} days` },
+                  { label: 'Daily Wage', value: `${formatCurrency(r.dailyWage)} / day` },
+                  { label: 'Payment Date', value: formatDate(r.paidOn) },
+                  { label: 'Payment Method', value: r.paymentMethod }
+                ]}
+                actions={
+                  r.isDeleted ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setConfirmTarget({ type: 'restore', payment: r })}
+                    >
+                      <RotateCcw size={14} /> Restore
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="secondary" onClick={() => printReceipt(r)}>
+                        <Printer size={14} /> Print
+                      </Button>
+                      <Button variant="secondary" onClick={() => { setEditing(r); setIsFormOpen(true); }}>
+                        <Pencil size={14} /> Edit
+                      </Button>
+                      <Button variant="danger" onClick={() => setConfirmTarget({ type: 'delete', payment: r })}>
+                        <Trash2 size={14} /> Delete
+                      </Button>
+                    </>
+                  )
+                }
+              />
+            ))}
+          </div>
 
           {data.totalPages > 1 && (
             <div className="sites-page__pagination">
