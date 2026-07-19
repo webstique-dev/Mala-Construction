@@ -1,0 +1,200 @@
+.activity-logs-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.activity-log__action {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-steel-100);
+}
+
+.activity-log__action--create {
+  background: var(--color-success-50) !important;
+  color: var(--color-success-600) !important;
+  border: 1px solid rgba(22, 163, 74, 0.1);
+}
+
+.activity-log__action--update {
+  background: var(--color-primary-50) !important;
+  color: var(--color-primary-600) !important;
+  border: 1px solid rgba(30, 111, 255, 0.1);
+}
+
+.activity-log__action--delete {
+  background: var(--color-danger-50) !important;
+  color: var(--color-danger-600) !important;
+  border: 1px solid rgba(220, 38, 38, 0.1);
+}
+
+.activity-log__action--login {
+  background: var(--color-success-50);
+  color: var(--color-success-600);
+}
+
+.activity-log__action--logout {
+  background: var(--color-steel-100);
+  color: var(--color-text-primary);
+}
+
+/* --- Timeline Layout --- */
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.activity-timeline__item {
+  display: flex;
+  gap: var(--space-md);
+  position: relative;
+  padding-bottom: var(--space-xl);
+}
+
+.activity-timeline__item:last-child {
+  padding-bottom: 0;
+}
+
+.activity-timeline__line {
+  position: absolute;
+  top: 36px;
+  left: 17px;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-border);
+}
+
+.activity-timeline__item:last-child .activity-timeline__line {
+  display: none;
+}
+
+.activity-timeline__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--color-bg);
+  border: 2px solid var(--color-border);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.activity-timeline__icon--create {
+  background-color: var(--color-success-50);
+  color: var(--color-success-500);
+  border-color: var(--color-success-500);
+}
+
+.activity-timeline__icon--update {
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-500);
+  border-color: var(--color-primary-500);
+}
+
+.activity-timeline__icon--delete {
+  background-color: var(--color-danger-50);
+  color: var(--color-danger-500);
+  border-color: var(--color-danger-500);
+}
+
+.activity-timeline__content {
+  flex: 1;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  transition: box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+[data-theme='dark'] .activity-timeline__content {
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.activity-timeline__content:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.activity-timeline__actor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.activity-timeline__role {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.activity-timeline__time-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.activity-timeline__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-base);
+}
+
+.activity-timeline__footer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+  border-top: 1px dashed var(--color-border);
+}
+
+.activity-timeline__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+[data-theme='dark'] .activity-timeline__tag {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* --- Skeletons --- */
+.activity-timeline__item-skeleton {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.activity-timeline__item-skeleton:last-child {
+  border-bottom: none;
+}

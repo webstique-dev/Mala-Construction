@@ -1,0 +1,292 @@
+.worker-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.worker-profile__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.worker-profile__back:hover {
+  color: var(--color-primary-500);
+}
+
+/* --- Hero Banner Redesign --- */
+.worker-profile__hero-dashboard {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-lg);
+}
+
+.worker-profile__hero-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.worker-profile__avatar-container {
+  flex-shrink: 0;
+}
+
+.worker-profile__photo-img {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-card);
+  object-fit: cover;
+}
+
+.worker-profile__avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-card);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+  font-size: 2.2rem;
+  font-weight: var(--font-weight-bold);
+}
+
+.worker-profile__hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.worker-profile__badge {
+  align-self: flex-start;
+}
+
+.worker-profile__hero-meta h1 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: var(--space-3xs) 0;
+}
+
+.worker-profile__profession {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.worker-profile__kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-sm);
+}
+
+.worker-kpi-card {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.worker-kpi-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3xs);
+}
+
+.worker-kpi-card__icon {
+  color: var(--color-primary-500);
+}
+
+.worker-kpi-card__icon--success {
+  color: var(--color-success-500);
+}
+
+.worker-kpi-card h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.worker-kpi-card__value--success {
+  color: var(--color-success-500) !important;
+}
+
+/* --- Dashboard Columns Grid --- */
+.worker-profile__dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.worker-info-card {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.worker-info-card:last-child {
+  margin-bottom: 0;
+}
+
+.worker-info-card__header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.worker-info-card__header h3 {
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+.worker-info-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.worker-info-card__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.worker-info-card__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.worker-info-card__value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.worker-info-card__empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-style: italic;
+  text-align: center;
+  padding: var(--space-sm) 0;
+}
+
+/* --- Wages ledger card --- */
+.worker-payments-card {
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.worker-payments-card__header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.worker-payments-card__header h3 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.worker-payments-card__table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+}
+
+.worker-payments-card__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.worker-payments-card__table th {
+  font-size: var(--font-size-xs);
+  text-align: start;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  /* text-transform: uppercase; */
+  letter-spacing: 0.05em;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+.worker-payments-card__table td {
+  padding: var(--space-sm);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.worker-payments-card__table tr:last-child td {
+  border-bottom: none;
+}
+
+.worker-payments-card__table tr:hover td {
+  background-color: var(--color-steel-50);
+}
+
+[data-theme='dark'] .worker-payments-card__table tr:hover td {
+  background-color: var(--color-steel-700);
+}
+
+.worker-payments-card__amount {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.worker-profile__empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  padding: var(--space-lg) 0;
+  text-align: center;
+}
+
+.worker-profile__error-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+@media (max-width: 768px) {
+  .worker-profile__hero-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .worker-profile__dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}

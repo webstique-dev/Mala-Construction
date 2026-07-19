@@ -1,0 +1,38 @@
+.file-upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.file-upload__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.file-upload__dropzone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+}
+
+.file-upload__dropzone:hover {
+  border-color: var(--color-primary-500);
+  background: var(--color-primary-50);
+}
+
+.file-upload__dropzone input {
+  display: none;
+}
+
+.file-upload__hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}

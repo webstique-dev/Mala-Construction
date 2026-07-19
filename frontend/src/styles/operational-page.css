@@ -1,0 +1,116 @@
+.module-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.module-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.module-page__header h1 {
+  font-size: var(--font-size-xl);
+}
+
+.module-page__header p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-2xs);
+}
+
+.module-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.module-page__filters select,
+.module-page__filters input[type='date'] {
+  min-width: 140px;
+}
+
+.module-page__row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2xs);
+  color: black;
+}
+
+.module-page__total-preview {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-700);
+}
+
+[data-theme='dark'] .module-page__total-preview {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--color-primary-300);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-grid .form-field--full {
+  grid-column: 1 / -1;
+}
+
+.status-badge {
+  background: none !important;
+  color: none !important;
+  border: none !important;
+  padding: 0 !important;
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.status-badge--inactive {
+  padding: 5px 10px;
+  border-radius: 14px;
+  /* background-color: var(--color-steel-200); */
+  color: var(--color-steel-600);
+}
+
+.status-badge--pending {
+  padding: 5px 10px;
+  border-radius: 14px;
+  /* background-color: var(--color-warning-100); */
+  color: var(--color-warning-500);
+}
+
+.status-badge--paid {
+  padding: 5px 10px;
+  border-radius: 14px;
+  /* background-color: var(--color-success-100); */
+  color: var(--color-success-500);
+}
+
+.link-btn {
+  color: var(--color-primary-600);
+  font-weight: var(--font-weight-medium);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}

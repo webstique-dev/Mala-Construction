@@ -1,0 +1,202 @@
+.sidebar {
+  display: none; /* hidden by default; shown as rail on desktop below */
+  flex-direction: column;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sidebar);
+  transition: width var(--duration-slow) var(--ease-standard);
+  flex-shrink: 0;
+  /* padding-bottom: calc(var(--space-2xl)); */
+}
+
+.sidebar--collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  height: var(--topbar-height);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.sidebar__brand-mark {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-300));
+  border-radius: 8px;
+}
+
+.sidebar__collapse-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--color-sidebar-text);
+  padding: var(--space-2xs) var(--space-sm);
+}
+
+.sidebar__nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md) var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.sidebar__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.sidebar__group-label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.6);
+  padding: 0 var(--space-sm);
+  margin-bottom: var(--space-2xs);
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 10px;
+  border-radius: 8px; /* pill highlight radius */
+  color: var(--color-sidebar-text);
+  font-size: var(--font-size-sm);
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  min-height: 44px;
+}
+
+.sidebar__link:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+
+.sidebar__link--active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-left: 3px solid var(--color-primary-500);
+  border-radius: 0 8px 8px 0;
+  padding-left: 7px;
+}
+
+.sidebar__logout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-sidebar-text);
+  font-size: var(--font-size-sm);
+}
+
+.sidebar__logout:hover {
+  color: #fff;
+}
+
+.sidebar__scrim {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  z-index: calc(var(--z-sidebar) - 1);
+}
+
+.sidebar--drawer {
+  display: flex;
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(85vw, var(--sidebar-width));
+}
+
+/* Tools section (Settings, Logout) */
+.sidebar__tools {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Bottom CTA */
+.sidebar__cta {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 20px;
+  background: linear-gradient(90deg, var(--color-primary-600), var(--color-primary-300));
+  color: #fff;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  box-shadow: var(--shadow-md);
+}
+
+.sidebar__cta .cta-btn {
+  margin-left: auto;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: var(--radius-full);
+}
+
+@media (min-width: 1025px) {
+  .sidebar:not(.sidebar--drawer) {
+    display: flex;
+  }
+}
+
+.sidebar__tools {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.sidebar__cta {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-500));
+  color: #fff;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.sidebar__cta div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.sidebar__cta .btn {
+  align-self: flex-start;
+}

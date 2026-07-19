@@ -1,0 +1,85 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin-bottom: var(--space-md);
+}
+
+.form-field__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.form-field__required {
+  color: var(--color-danger-500);
+  margin-left: 2px;
+}
+
+.form-field__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.form-field__error {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-500);
+}
+
+/* Shared input styling - imported by any component rendering a raw input/select/textarea. */
+.form-input,
+.form-select,
+.form-textarea {
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  width: 100%;
+  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--color-primary-300);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 4px rgba(30, 111, 255, 0.14);
+  outline: none;
+}
+
+.form-textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.form-input--error,
+.form-select--error,
+.form-textarea--error {
+  border-color: var(--color-danger-500);
+}
+
+.form-input--error:focus,
+.form-select--error:focus,
+.form-textarea--error:focus {
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.18);
+}
+
+/* Placeholder styling for better contrast in both themes */
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.85;
+}
+
+/* Ensure native select options inherit background and text color in dark mode */
+.form-select option {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}

@@ -1,0 +1,286 @@
+.topbar {
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 0 var(--space-lg);
+  background-color: rgba(245, 246, 250, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-topbar);
+}
+[data-theme='dark'] .topbar {
+  background-color: rgba(15, 23, 42, 0.85);
+}
+
+.topbar__menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+}
+
+@media (min-width: 1025px) {
+  .topbar__menu-btn {
+    display: none;
+  }
+}
+
+.topbar__search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px; /* pill-shaped */
+  padding: 0 var(--space-md);
+  height: 44px;
+  max-width: 560px;
+  color: var(--color-text-secondary);
+}
+
+.topbar__search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  color: var(--color-text-primary);
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.topbar__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-primary);
+  width: 40px;
+  height: 40px;
+}
+
+.topbar__user {
+  display: none;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  line-height: 1.2;
+}
+
+.topbar__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--color-primary-50);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-600);
+  font-weight: var(--font-weight-medium);
+}
+
+.topbar__user-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.topbar__user-role {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 481px) {
+  .topbar__user {
+    display: flex;
+  }
+}
+
+/* --- Notifications Dropdown Container --- */
+.topbar__notifications-container {
+  position: relative;
+  display: inline-block;
+}
+
+.topbar__badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background-color: var(--color-danger-500);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  height: 16px;
+  min-width: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1px solid var(--color-surface);
+}
+
+.topbar__dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  width: 320px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.topbar__dropdown-header {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar__dropdown-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.topbar__dropdown-read-all {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+}
+
+.topbar__dropdown-read-all:hover {
+  text-decoration: underline;
+}
+
+.topbar__dropdown-items {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.topbar__dropdown-item {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: var(--space-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+  position: relative;
+}
+
+.topbar__dropdown-item:hover {
+  background-color: var(--color-bg);
+}
+
+.topbar__dropdown-item--unread {
+  background-color: rgba(30, 111, 255, 0.03);
+}
+
+.topbar__dropdown-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topbar__dropdown-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.topbar__dropdown-item-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar__dropdown-item-message {
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.topbar__dropdown-item-time {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.topbar__dropdown-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-500);
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.topbar__dropdown-empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.topbar__dropdown-footer {
+  padding: var(--space-xs) var(--space-md);
+  background-color: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.topbar__dropdown-link {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-600);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  display: inline-block;
+  padding: var(--space-xs) 0;
+}
+
+.topbar__dropdown-link:hover {
+  text-decoration: underline;
+}
