@@ -1,22 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
   Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Building2,
   Users,
@@ -25,6 +22,7 @@ import {
   CreditCard,
   DollarSign,
   TrendingUp,
+  TrendingDown,
   Activity,
   Calendar,
   Layers,
@@ -42,14 +40,19 @@ import Card from '../../components/ui/Card';
 import DatePickerInput from '../../components/ui/DatePickerInput';
 import Button from '../../components/common/Button';
 
-const PERIODS = [
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
-  { key: 'year', label: 'Year' },
-];
-
-const CHART_COLORS = ['var(--color-primary-500)', '#6d28d9', '#16a34a', '#eab308', '#dc2626', '#64748b'];
+// Register Chart.js modules
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const ICON_MAP = {
   'Total Sites': Building2,
@@ -70,19 +73,28 @@ const ICON_MAP = {
   'Pending Payments': CreditCard,
 };
 
-function StatCard({ label, value, format = 'currency' }) {
+const MOCK_BADGES = ['+2.08%', '+12.4%', '-2.08%', '+12.1%', '+5.34%', '+1.8%', '+2.3%', '-1.04%'];
+
+function StatCard({ label, value, format = 'currency', isFeatured = false, badgeIndex = 0 }) {
   const IconComponent = ICON_MAP[label] || Activity;
   const display = format === 'currency' ? formatCurrency(value) : value ?? 0;
+  const badgeText = MOCK_BADGES[badgeIndex % MOCK_BADGES.length];
+  const isNegative = badgeText.startsWith('-');
 
   return (
-    <div className="stat-card__content">
-      <div className="stat-card__header">
-        <span className="stat-card__label">{label}</span>
+    <div className={`stat-card__content ${isFeatured ? 'stat-card__content--featured' : ''}`}>
+      <div className="stat-card__top">
         <div className="stat-card__icon-wrapper">
-          <IconComponent size={18} className="stat-card__icon" />
+          <IconComponent size={20} className="stat-card__icon" />
         </div>
+        <span className={`stat-card__badge ${isNegative ? 'stat-card__badge--negative' : 'stat-card__badge--positive'}`}>
+          {isNegative ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
+          {badgeText}
+        </span>
       </div>
+
       <div className="stat-card__body">
+        <span className="stat-card__label">{label}</span>
         <h3 className="stat-card__value">{display}</h3>
       </div>
     </div>
@@ -120,6 +132,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
+  const [windowWidth, setWindowWidth] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1024);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState({
@@ -146,7 +159,10 @@ export default function Dashboard() {
   const { data, isLoading, isError, isFetching } = useDashboard(dashboardParams);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      setIsMobile(window.innerWidth < 768);
+    };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -206,16 +222,6 @@ export default function Dashboard() {
     if (closeDrawer) setIsFilterDrawerOpen(false);
   };
 
-  const hasActiveFilters = Boolean(
-    period !== 'month' ||
-    siteFilter ||
-    startDate ||
-    endDate ||
-    categoryFilter ||
-    statusFilter ||
-    searchFilter,
-  );
-
   if (isLoading && !data) return <DashboardSkeleton />;
   if (isError) {
     return (
@@ -231,6 +237,7 @@ export default function Dashboard() {
   const { cards = {}, charts = {}, recent = {} } = data || {};
 
   const superAdminCards = [
+    { label: 'Total Expenses', value: cards.totalExpenses },
     { label: 'Total Sites', value: cards.totalSites, format: 'number' },
     { label: 'Active Sites', value: cards.activeSites, format: 'number' },
     { label: 'Site Admins', value: cards.siteAdmins, format: 'number' },
@@ -242,10 +249,10 @@ export default function Dashboard() {
     { label: 'Material Cost', value: cards.totalMaterialCost },
     { label: 'Worker Payments', value: cards.totalWorkerPayments },
     { label: 'Other Expenses', value: cards.totalOtherExpenses },
-    { label: 'Total Expenses', value: cards.totalExpenses },
   ];
 
   const siteAdminCards = [
+    { label: 'Total Expenses', value: cards.totalExpenses },
     { label: 'Workers Present Today', value: cards.todayWorkersPresent, format: 'number' },
     { label: 'Today Labour Expense', value: cards.todayLabourExpense },
     { label: 'Weekly Labour Expense', value: cards.weeklyLabourExpense },
@@ -256,7 +263,6 @@ export default function Dashboard() {
     { label: 'Worker Payments', value: cards.workerPayments },
     { label: 'Other Expenses', value: cards.otherExpenses },
     { label: 'Pending Payments', value: cards.pendingPayments, format: 'number' },
-    { label: 'Total Expenses', value: cards.totalExpenses },
   ];
 
   const cardItems = isSuperAdmin ? superAdminCards : siteAdminCards;
@@ -264,166 +270,176 @@ export default function Dashboard() {
   const breakdownData = charts?.expenseBreakdown ?? [];
   const sitePerformance = charts?.sitePerformance ?? [];
 
+  const isSmallScreen = windowWidth < 375;
+  const isUltraSmall = windowWidth < 320;
+
+  // --- Chart.js Data & Responsive Options ---
+  const lineChartData = {
+    labels: trendData.map((d) => d.month),
+    datasets: [
+      {
+        label: 'Materials',
+        data: trendData.map((d) => d.materials),
+        borderColor: '#3B82F6',
+        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: isSmallScreen ? 3 : 4,
+        pointHoverRadius: 6,
+      },
+      {
+        label: 'Payments',
+        data: trendData.map((d) => d.payments),
+        borderColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.12)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: isSmallScreen ? 3 : 4,
+        pointHoverRadius: 6,
+      },
+      {
+        label: 'Expenses',
+        data: trendData.map((d) => d.expenses),
+        borderColor: '#10B981',
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: isSmallScreen ? 3 : 4,
+        pointHoverRadius: 6,
+      },
+    ],
+  };
+
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: isSmallScreen ? 'bottom' : 'top',
+        align: isSmallScreen ? 'center' : 'end',
+        labels: {
+          usePointStyle: true,
+          boxWidth: isSmallScreen ? 6 : 8,
+          padding: isSmallScreen ? 8 : 12,
+          font: { family: 'Inter', size: isSmallScreen ? 10 : 12 },
+        },
+      },
+      tooltip: {
+        padding: 8,
+        borderRadius: 8,
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          font: { family: 'Inter', size: isSmallScreen ? 9 : 11 },
+          color: '#64748b',
+          maxRotation: isSmallScreen ? 45 : 0,
+        },
+      },
+      y: {
+        grid: { color: 'rgba(226, 232, 240, 0.6)' },
+        ticks: {
+          font: { family: 'Inter', size: isSmallScreen ? 9 : 11 },
+          color: '#64748b',
+          callback: (v) => `₹${(v / 1000).toFixed(0)}k`,
+        },
+      },
+    },
+  };
+
+  const doughnutData = {
+    labels: breakdownData.map((d) => d.name),
+    datasets: [
+      {
+        data: breakdownData.map((d) => d.value),
+        backgroundColor: ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#64748B'],
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: isUltraSmall ? '58%' : isSmallScreen ? '64%' : '72%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          usePointStyle: true,
+          boxWidth: isSmallScreen ? 6 : 8,
+          font: { family: 'Inter', size: isSmallScreen ? 10 : 12 },
+          padding: isSmallScreen ? 8 : 16,
+        },
+      },
+      tooltip: {
+        padding: 8,
+        borderRadius: 8,
+        callbacks: {
+          label: (ctx) => `${ctx.label}: ${formatCurrency(ctx.raw)}`,
+        },
+      },
+    },
+  };
+
+  const barChartData = {
+    labels: sitePerformance.map((d) => d.name),
+    datasets: [
+      {
+        label: 'Expenditure',
+        data: sitePerformance.map((d) => d.value),
+        backgroundColor: '#3B82F6',
+        borderRadius: 8,
+        borderSkipped: false,
+        barThickness: 28,
+      },
+    ],
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        padding: 12,
+        borderRadius: 12,
+        callbacks: {
+          label: (ctx) => formatCurrency(ctx.raw),
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' },
+      },
+      y: {
+        grid: { color: 'rgba(226, 232, 240, 0.6)' },
+        ticks: {
+          font: { family: 'Inter', size: 11 },
+          color: '#64748b',
+          callback: (v) => `₹${(v / 1000).toFixed(0)}k`,
+        },
+      },
+    },
+  };
+
   return (
     <div className="dashboard">
       <div className="dashboard__header-section" style={{ borderBottom: 'none', paddingBottom: 0 }}>
         <div className="dashboard__info-header">
           <h1>{isSuperAdmin ? 'Company Overview' : 'Site Performance'}</h1>
-          <p>Real-time construction financial analytics and metrics</p>
+          <p>Real-time construction financial analytics and operational metrics</p>
         </div>
       </div>
-
-      {/* Advanced Dashboard Filter Bar */}
-      {/* <Card className="reports-page__filter-card" style={{ padding: 'var(--space-md)' }}>
-        {isMobile ? (
-          <div className="dashboard__mobile-filter-row">
-            <div className="dashboard__mobile-search">
-              <input
-                id="mobile-search-input"
-                type="text"
-                className="form-input"
-                placeholder="Search..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              <Search size={16} />
-            </div>
-            <Button variant="secondary" onClick={openFilterDrawer}>
-              <Filter size={16} /> Filter
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="dashboard__filter-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-md)', alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                <label htmlFor="period-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Period Range</label>
-                <select
-                  id="period-selector"
-                  className="form-select"
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                  style={{ minWidth: 150 }}
-                >
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="year">This Year</option>
-                  <option value="custom">Custom Date Range</option>
-                </select>
-              </div>
-
-              {period === 'custom' && (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                    <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Start Date</label>
-                    <DatePickerInput value={startDate} onChange={setStartDate} placeholder="From Date" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                    <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>End Date</label>
-                    <DatePickerInput value={endDate} onChange={setEndDate} placeholder="To Date" />
-                  </div>
-                </>
-              )}
-
-              {isSuperAdmin && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                  <label htmlFor="site-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Project Site</label>
-                  <select
-                    id="site-selector"
-                    className="form-select"
-                    value={siteFilter}
-                    onChange={(e) => setSiteFilter(e.target.value)}
-                    style={{ minWidth: 200 }}
-                  >
-                    <option value="">All Project Sites</option>
-                    {activeSites.data?.map((s) => (
-                      <option key={s._id} value={s._id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                <label htmlFor="category-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Category / Profession</label>
-                <select
-                  id="category-selector"
-                  className="form-select"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  style={{ minWidth: 200 }}
-                >
-                  <option value="">All Categories</option>
-                  <optgroup label="Professions">
-                    <option value="Construction Laborers">Construction Laborers</option>
-                    <option value="Masons/Bricklayers">Masons/Bricklayers</option>
-                    <option value="Carpenters">Carpenters</option>
-                    <option value="Electricians">Electricians</option>
-                    <option value="Plumbers">Plumbers</option>
-                    <option value="Painters">Painters</option>
-                    <option value="Tile Workers">Tile Workers</option>
-                    <option value="Welders">Welders</option>
-                    <option value="Steel Fixers">Steel Fixers</option>
-                    <option value="Helpers">Helpers</option>
-                  </optgroup>
-                  <optgroup label="Material Categories">
-                    {materialCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                  </optgroup>
-                  <optgroup label="Expense Heads">
-                    {expenseCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                  </optgroup>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }}>
-                <label htmlFor="status-selector" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Status</label>
-                <select
-                  id="status-selector"
-                  className="form-select"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  style={{ minWidth: 150 }}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="paid">Paid (Wages)</option>
-                  <option value="pending">Pending (Wages)</option>
-                  <option value="approved">Approved (Expenses)</option>
-                  <option value="rejected">Rejected (Expenses)</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)', flex: 1, minWidth: 200 }}>
-                <label htmlFor="search-input" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>Search</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    id="search-input"
-                    type="text"
-                    className="form-input"
-                    placeholder="Search..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    style={{ paddingRight: 32 }}
-                  />
-                  <Search size={16} style={{ position: 'absolute', right: 10, top: 12, opacity: 0.4 }} />
-                </div>
-              </div>
-
-              <div className="dashboard__filter-actions">
-                <Button variant="secondary" onClick={() => handleClearFilters()}>
-                  Reset Filters
-                </Button>
-              </div>
-            </div>
-
-            <div className="dashboard__filter-meta">
-              <span className={`dashboard__status-pill ${isFetching ? 'dashboard__status-pill--loading' : ''}`}>
-                {isFetching ? 'Refreshing dashboard…' : 'Live data'}
-              </span>
-              {hasActiveFilters && <span className="dashboard__status-pill dashboard__status-pill--secondary">Filtered view</span>}
-            </div>
-          </>
-        )}
-      </Card> */}
 
       <Drawer
         isOpen={isFilterDrawerOpen}
@@ -495,36 +511,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* <div className="dashboard__drawer-field">
-            <label htmlFor="mobile-category-selector" className="dashboard__drawer-label">Category / Profession</label>
-            <select
-              id="mobile-category-selector"
-              className="form-select"
-              value={draftFilters.categoryFilter}
-              onChange={(e) => setDraftFilters((prev) => ({ ...prev, categoryFilter: e.target.value }))}
-            >
-              <option value="">All Categories</option>
-              <optgroup label="Professions">
-                <option value="Construction Laborers">Construction Laborers</option>
-                <option value="Masons/Bricklayers">Masons/Bricklayers</option>
-                <option value="Carpenters">Carpenters</option>
-                <option value="Electricians">Electricians</option>
-                <option value="Plumbers">Plumbers</option>
-                <option value="Painters">Painters</option>
-                <option value="Tile Workers">Tile Workers</option>
-                <option value="Welders">Welders</option>
-                <option value="Steel Fixers">Steel Fixers</option>
-                <option value="Helpers">Helpers</option>
-              </optgroup>
-              <optgroup label="Material Categories">
-                {materialCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </optgroup>
-              <optgroup label="Expense Heads">
-                {expenseCategories.data?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </optgroup>
-            </select>
-          </div> */}
-
           <div className="dashboard__drawer-field">
             <label htmlFor="mobile-status-selector" className="dashboard__drawer-label">Status</label>
             <select
@@ -558,6 +544,7 @@ export default function Dashboard() {
         </div>
       </Drawer>
 
+      {/* Stat Cards Grid */}
       <div className="dashboard__cards-grid">
         {cardItems.map((c, index) => (
           <motion.div
@@ -566,8 +553,8 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.03, duration: 0.3 }}
           >
-            <Card className="stat-card">
-              <StatCard label={c.label} value={c.value} format={c.format} />
+            <Card className={`stat-card ${index === 0 ? 'stat-card--featured' : ''}`}>
+              <StatCard label={c.label} value={c.value} format={c.format} isFeatured={index === 0} badgeIndex={index} />
             </Card>
           </motion.div>
         ))}
@@ -577,38 +564,16 @@ export default function Dashboard() {
         <div className="dashboard__loading-banner">Updating dashboard results…</div>
       )}
 
+      {/* Chart.js Panels Grid */}
       <div className="dashboard__charts-grid">
         <Card className="chart-panel">
           <div className="chart-panel__header">
             <h3>Expense Trend Analysis</h3>
           </div>
           {trendData.length ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={trendData} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorMaterials" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.16} />
-                    <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorPayments" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6d28d9" stopOpacity={0.16} />
-                    <stop offset="95%" stopColor="#6d28d9" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.16} />
-                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)' }} />
-                <Legend verticalAlign="top" align="right" iconType="circle" iconSize={8} wrapperStyle={{ paddingBottom: 15 }} />
-                <Area type="monotone" dataKey="materials" name="Materials" stroke="var(--color-primary-500)" strokeWidth={2} fill="url(#colorMaterials)" />
-                <Area type="monotone" dataKey="payments" name="Payments" stroke="#6d28d9" strokeWidth={2} fill="url(#colorPayments)" />
-                <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#16a34a" strokeWidth={2} fill="url(#colorExpenses)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="chart-panel__canvas-wrapper">
+              <Line data={lineChartData} options={lineChartOptions} />
+            </div>
           ) : (
             <div className="dashboard__empty-state">No trend data available for the selected filters.</div>
           )}
@@ -619,27 +584,9 @@ export default function Dashboard() {
             <h3>Expense Allocation</h3>
           </div>
           {breakdownData.length ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={breakdownData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  stroke="var(--color-surface)"
-                  strokeWidth={2}
-                >
-                  {breakdownData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => formatCurrency(v)} />
-                <Legend verticalAlign="bottom" align="center" iconType="circle" iconSize={8} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="chart-panel__canvas-wrapper">
+              <Doughnut data={doughnutData} options={doughnutOptions} />
+            </div>
           ) : (
             <div className="dashboard__empty-state">No expense breakdown data is available for these filters.</div>
           )}
@@ -651,15 +598,9 @@ export default function Dashboard() {
               <h3>Top Projects by Expenditure</h3>
             </div>
             {sitePerformance.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={sitePerformance} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)' }} />
-                  <Bar dataKey="value" fill="var(--color-primary-500)" radius={[6, 6, 0, 0]} barSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="chart-panel__canvas-wrapper">
+                <Bar data={barChartData} options={barChartOptions} />
+              </div>
             ) : (
               <div className="dashboard__empty-state">No site performance data is available for these filters.</div>
             )}
@@ -667,6 +608,7 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Activity Logs Section */}
       <div className="dashboard__activity-layout">
         <Card className="activity-panel">
           <div className="activity-panel__header">

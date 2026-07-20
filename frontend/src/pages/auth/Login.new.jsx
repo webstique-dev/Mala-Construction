@@ -75,17 +75,19 @@ export default function Login() {
   }, [activeTab]);
 
   const onLoginSubmit = async (values) => {
-    setServerError(null);
     setIsLoggingIn(true);
     try {
       const payload = { ...values, email: trimString(values.email), password: trimString(values.password) };
       const user = await login(payload);
-      const redirectTo = location.state?.from?.pathname || '/dashboard';
+      let redirectTo = location.state?.from?.pathname || '/dashboard';
+      const superAdminOnlyRoutes = ['/sites', '/site-admins', '/settings'];
+      if (user?.role !== 'super_admin' && superAdminOnlyRoutes.some((r) => redirectTo.startsWith(r))) {
+        redirectTo = '/dashboard';
+      }
       toast.success(`Welcome back, ${user?.name || 'there'}!`);
       navigate(redirectTo, { replace: true });
     } catch (err) {
       const message = err.response?.data?.message || 'Unable to sign in. Check your credentials and try again.';
-      setServerError(message);
       toast.error(message);
       setIsLoggingIn(false);
     }

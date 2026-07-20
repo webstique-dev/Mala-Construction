@@ -16,14 +16,14 @@ import ActivityLogs from '../pages/activityLogs/ActivityLogs';
 import Notifications from '../pages/notifications/Notifications';
 import Settings from '../pages/settings/Settings';
 import Profile from '../pages/settings/Profile';
-// import Unauthorized from '../pages/errors/Unauthorized';
+import Unauthorized from '../pages/errors/Unauthorized';
 import NotFound from '../pages/errors/NotFound';
 import { ROLES } from '../constants';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/dashboard" replace /> },
   { path: '/login', element: <Login /> },
-  // { path: '/unauthorized', element: <Unauthorized /> },
+  { path: '/unauthorized', element: <Unauthorized /> },
 
   {
     element: <ProtectedRoute />,

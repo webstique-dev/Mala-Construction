@@ -16,12 +16,14 @@
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-toolbar__search-field {
-  flex: 1 1 240px;
-  min-width: min(240px, 100%);
-  max-width: 380px;
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 300px;
 }
 
 .filter-toolbar__search {
@@ -29,12 +31,14 @@
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 44px;
+  height: 42px;
+  min-height: 42px;
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0 var(--space-sm);
   color: var(--color-text-secondary);
+  box-sizing: border-box;
   transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
 }
 
@@ -78,8 +82,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--space-sm);
-  flex: 1 1 0;
+  gap: var(--space-md);
+  flex: 2 1 auto;
   min-width: 0;
 }
 
@@ -87,10 +91,17 @@
 .filter-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
-  /* flex: 1 1 200px; */
-  /* min-width: 140px; */
-  /* max-width: 280px; */
+  gap: 4px;
+  /* flex: 1 1 140px; */
+  /* min-width: 130px; */
+}
+
+.filter-field .date-picker {
+  gap: 4px;
+}
+
+.filter-field .date-picker__label {
+  display: none;
 }
 
 .no-scroll {
@@ -104,12 +115,14 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .filter-select,
-.filter-text-input {
-  min-height: 44px;
-  height: 44px;
+.filter-text-input,
+.filter-field .date-picker__input {
+  min-height: 42px;
+  height: 42px;
   width: 100%;
   min-width: 0;
   padding: 0 var(--space-md);
@@ -118,24 +131,23 @@
   border: 1px solid var(--color-border);
   background-color: var(--color-surface);
   color: var(--color-text-primary);
+  box-sizing: border-box;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
 }
 
 .filter-select:hover,
-.filter-text-input:hover {
+.filter-text-input:hover,
+.filter-field .date-picker__input:hover {
   border-color: var(--color-primary-300);
 }
 
 .filter-select:focus,
-.filter-text-input:focus {
+.filter-text-input:focus,
+.filter-field .date-picker__input:focus {
   border-color: var(--color-primary-500);
   box-shadow: 0 0 0 4px rgba(30, 111, 255, 0.14);
   outline: none;
-}
-
-.filter-text-input {
-  width: 100%;
 }
 
 .filter-select option {
@@ -143,37 +155,9 @@
   color: var(--color-text-primary);
 }
 
-/* .filter-field .react-datepicker-wrapper,
-.filter-field .react-datepicker-wrapper input,
-.filter-field input[type='date'] {
-  min-height: 44px !important;
-  height: 44px !important;
-  width: 100% !important;
-  padding: 0 var(--space-md) !important;
-  border-radius: var(--radius-sm) !important;
-  font-size: var(--font-size-sm) !important;
-  border: 1px solid var(--color-border) !important;
-  background-color: var(--color-surface) !important;
-  color: var(--color-text-primary) !important;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04) !important;
-  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard) !important;
-  outline: none !important;
-} */
-
-/* .filter-field .react-datepicker-wrapper input:hover,
-.filter-field input[type='date']:hover {
-  border-color: var(--color-primary-300) !important;
-}
-
-.filter-field .react-datepicker-wrapper input:focus,
-.filter-field input[type='date']:focus {
-  border-color: var(--color-primary-500) !important;
-  box-shadow: 0 0 0 4px rgba(30, 111, 255, 0.14) !important;
-} */
-
 .filter-field--checkbox {
-  align-self: center;
-  min-height: 44px;
+  align-self: flex-end;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,20 +177,25 @@
   justify-content: center;
   gap: var(--space-xs);
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  min-height: 44px;
+  height: 42px;
+  min-height: 42px;
   padding: 0 var(--space-md);
   cursor: pointer;
   border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  white-space: nowrap;
+  align-self: flex-end;
   transition: all var(--duration-fast) var(--ease-standard);
 }
 
 .filter-toolbar__reset-btn:hover {
   background-color: var(--color-steel-100);
   color: var(--color-text-primary);
+  border-color: var(--color-steel-300);
 }
 
 /* --- Mobile Filter Trigger Button --- */
@@ -218,7 +207,8 @@
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  min-height: 44px;
+  height: 42px;
+  min-height: 42px;
   padding: 0 var(--space-md);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
@@ -338,7 +328,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  padding: var(--space-sm) 0;
+  /* padding: var(--space-sm) 0; */
 }
 
 .filter-drawer-body .filter-field {
