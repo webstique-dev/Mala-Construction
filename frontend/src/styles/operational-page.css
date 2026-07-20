@@ -186,7 +186,7 @@
   color: var(--color-text-primary);
   background-color: transparent;
   white-space: normal;
-  word-break: break-word;
+  /* word-break: break-word; */
 }
 
 .worker-payments-card__table tr:last-child td {

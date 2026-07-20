@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import DatePickerInput from '../../components/ui/DatePickerInput';
+import TimePickerInput from '../../components/ui/TimePickerInput';
 import Card from '../../components/ui/Card';
 import AccordionCard from '../../components/ui/AccordionCard';
 import Drawer from '../../components/drawers/Drawer';
@@ -912,20 +913,21 @@ export default function Attendance() {
               />
             </div>
 
-            <div>
+            <div className="batch-entry-header-box__shift">
               <label className="form-field-label-bold">Shift Hours</label>
               <div className="shift-hours-flex">
-                <input
-                  type="time"
-                  className="form-input"
+                <TimePickerInput
                   value={batchHeader.inTime}
                   onChange={(e) => setBatchHeader((prev) => ({ ...prev, inTime: e.target.value }))}
+                  placeholder="In Time"
+                  ariaLabel="Shift In Time"
                 />
-                <input
-                  type="time"
-                  className="form-input"
+                <TimePickerInput
                   value={batchHeader.outTime}
                   onChange={(e) => setBatchHeader((prev) => ({ ...prev, outTime: e.target.value }))}
+                  placeholder="Out Time"
+                  ariaLabel="Shift Out Time"
+                  align="right"
                 />
               </div>
             </div>
@@ -1088,20 +1090,21 @@ export default function Attendance() {
           <div className="attendance-form-row">
             <div>
               <label className="form-field-label-bold">Shift In Time</label>
-              <input
-                type="time"
-                className="form-input"
+              <TimePickerInput
                 value={singleForm.inTime}
                 onChange={(e) => setSingleForm((prev) => ({ ...prev, inTime: e.target.value }))}
+                placeholder="In Time"
+                ariaLabel="Shift In Time"
               />
             </div>
             <div>
               <label className="form-field-label-bold">Shift Out Time</label>
-              <input
-                type="time"
-                className="form-input"
+              <TimePickerInput
                 value={singleForm.outTime}
                 onChange={(e) => setSingleForm((prev) => ({ ...prev, outTime: e.target.value }))}
+                placeholder="Out Time"
+                ariaLabel="Shift Out Time"
+                align="right"
               />
             </div>
           </div>

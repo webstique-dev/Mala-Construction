@@ -1,305 +1,515 @@
+'use strict';
+/**
+ * seedDummyData.js
+ * Run with: npm run seed:dummy
+ *
+ * Creates realistic dummy data for all 13 project sites plus
+ * related site admins, workers, attendance, materials, expenses,
+ * worker payments, suppliers, professions, and categories.
+ *
+ * SAFE TO RUN MULTIPLE TIMES — checks for existing records before inserting.
+ */
 require('dotenv').config();
 const mongoose = require('mongoose');
-const env = require('../config/env');
-const logger = require('./logger');
+const bcrypt = require('bcryptjs');
 
-const User = require('../models/User');
-const Site = require('../models/Site');
-const Supplier = require('../models/Supplier');
-const Profession = require('../models/Profession');
+// ─── Models ───────────────────────────────────────────────────────────────────
+const User             = require('../models/User');
+const Site             = require('../models/Site');
+const Profession       = require('../models/Profession');
 const MaterialCategory = require('../models/MaterialCategory');
-const ExpenseCategory = require('../models/ExpenseCategory');
-const Worker = require('../models/Worker');
-const Material = require('../models/Material');
-const Expense = require('../models/Expense');
-const WorkerPayment = require('../models/WorkerPayment');
-const Attendance = require('../models/Attendance');
-const { seedLookups } = require('./seedLookups');
+const ExpenseCategory  = require('../models/ExpenseCategory');
+const Supplier         = require('../models/Supplier');
+const Worker           = require('../models/Worker');
+const Attendance       = require('../models/Attendance');
+const Material         = require('../models/Material');
+const Expense          = require('../models/Expense');
+const WorkerPayment    = require('../models/WorkerPayment');
 
-async function seedDummyData() {
-  logger.info('Connecting to MongoDB for dummy data seeding...');
-  await mongoose.connect(env.mongoUri);
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const pick  = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const rand  = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randF = (min, max, decimals = 2) => parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
 
-  // 1. Seed Lookups
-  await seedLookups();
-
-  // Retrieve lookup objects
-  const professions = await Profession.find({ isDeleted: { $ne: true } });
-  const materialCategories = await MaterialCategory.find({ isDeleted: { $ne: true } });
-  const expenseCategories = await ExpenseCategory.find({ isDeleted: { $ne: true } });
-
-  if (professions.length === 0 || materialCategories.length === 0 || expenseCategories.length === 0) {
-    throw new Error('Lookups could not be retrieved.');
-  }
-
-  // 2. Ensure Super Admin exists
-  const superAdminEmail = process.env.SEED_SUPER_ADMIN_EMAIL || 'superadmin@gmail.com';
-  let superAdmin = await User.findOne({ email: superAdminEmail.toLowerCase() });
-  if (!superAdmin) {
-    superAdmin = await User.create({
-      name: process.env.SEED_SUPER_ADMIN_NAME || 'superadmin',
-      email: superAdminEmail,
-      password: process.env.SEED_SUPER_ADMIN_PASSWORD || 'superadmin1234',
-      role: 'super_admin',
-      status: 'active',
-    });
-    logger.info(`Super Admin created: ${superAdminEmail}`);
-  }
-
-  // 3. Create Sites
-  const siteData = [
-    { name: 'Apex Residency', code: 'APX-001', address: 'Plot 42, Sector 15, City Center', status: 'active' },
-    { name: 'Blue Sky Heights', code: 'BSH-002', address: '78 MG Road, Industrial Hub', status: 'active' },
-    { name: 'Grand Horizon Mall', code: 'GHM-003', address: '12 Bypass Highway, Tech Park', status: 'active' },
-    { name: 'Green Valley Villas', code: 'GVV-004', address: 'Valley Drive, Suburban Enclave', status: 'active' },
-  ];
-
-  const sites = [];
-  for (const s of siteData) {
-    let site = await Site.findOne({ code: s.code });
-    if (!site) {
-      site = await Site.create({ ...s, createdBy: superAdmin._id });
-      logger.info(`Site created: ${site.name} (${site.code})`);
-    }
-    sites.push(site);
-  }
-
-  // 4. Create Site Admins
-  const siteAdminProfiles = [
-    { name: 'Rajesh Sharma', email: 'rajesh.siteadmin@gmail.com', phone: '+919876543210', site: sites[0]._id },
-    { name: 'Suresh Kumar', email: 'suresh.siteadmin@gmail.com', phone: '+919876543211', site: sites[1]._id },
-    { name: 'Anita Patel', email: 'anita.siteadmin@gmail.com', phone: '+919876543212', site: sites[2]._id },
-    { name: 'Vikram Singh', email: 'vikram.siteadmin@gmail.com', phone: '+919876543213', site: sites[3]._id },
-  ];
-
-  for (const sa of siteAdminProfiles) {
-    let admin = await User.findOne({ email: sa.email.toLowerCase() });
-    if (!admin) {
-      admin = await User.create({
-        name: sa.name,
-        email: sa.email,
-        phone: sa.phone,
-        password: 'siteadmin1234',
-        role: 'site_admin',
-        assignedSite: sa.site,
-        status: 'active',
-        createdBy: superAdmin._id,
-      });
-      await Site.findByIdAndUpdate(sa.site, { assignedSiteAdmin: admin._id });
-      logger.info(`Site Admin created: ${admin.name} assigned to site`);
-    }
-  }
-
-  // 5. Create Suppliers
-  const supplierData = [
-    { name: 'UltraTech Cement Ltd', contactPerson: 'Ramesh Verma', phone: '+919811122233', email: 'sales@ultratech.com', category: 'Cement' },
-    { name: 'Tata Tiscon Steel', contactPerson: 'Alok Gupta', phone: '+919822233344', email: 'orders@tatatiscon.com', category: 'Steel' },
-    { name: 'Supreme Plumbing Supplies', contactPerson: 'Mahesh Nair', phone: '+919833344455', email: 'info@supremeplumb.com', category: 'Plumbing' },
-    { name: 'Asian Paints Authorized Dealer', contactPerson: 'Deepak Joshi', phone: '+919844455566', email: 'dealer@asianpaints.com', category: 'Paint' },
-    { name: 'Jindal Steel & Power', contactPerson: 'Sunil Rao', phone: '+919855566677', email: 'contact@jindalsteel.com', category: 'Steel' },
-  ];
-
-  const suppliers = [];
-  for (const sup of supplierData) {
-    let supplier = await Supplier.findOne({ name: sup.name });
-    if (!supplier) {
-      supplier = await Supplier.create({ ...sup, createdBy: superAdmin._id });
-      logger.info(`Supplier created: ${supplier.name}`);
-    }
-    suppliers.push(supplier);
-  }
-
-  // 6. Create Workers
-  const workerProfiles = [
-    { name: 'Ram Charan', phone: '+919900112233', dailyWage: 850, profIndex: 0, siteIndex: 0 },
-    { name: 'Shyam Lal', phone: '+919900112234', dailyWage: 900, profIndex: 1, siteIndex: 0 },
-    { name: 'Mukesh Kumar', phone: '+919900112235', dailyWage: 950, profIndex: 2, siteIndex: 1 },
-    { name: 'Santosh Yadav', phone: '+919900112236', dailyWage: 800, profIndex: 3, siteIndex: 1 },
-    { name: 'Dinesh Prasad', phone: '+919900112237', dailyWage: 1000, profIndex: 4, siteIndex: 2 },
-    { name: 'Ganesh Shinde', phone: '+919900112238', dailyWage: 1100, profIndex: 5, siteIndex: 2 },
-    { name: 'Kamlesh Sahu', phone: '+919900112239', dailyWage: 850, profIndex: 6, siteIndex: 3 },
-    { name: 'Babulal Rai', phone: '+919900112240', dailyWage: 600, profIndex: 7, siteIndex: 3 },
-    { name: 'Manish Pandey', phone: '+919900112241', dailyWage: 950, profIndex: 8, siteIndex: 0 },
-    { name: 'Raju Helper', phone: '+919900112242', dailyWage: 550, profIndex: 9, siteIndex: 1 },
-  ];
-
-  const workers = [];
-  for (const wp of workerProfiles) {
-    let worker = await Worker.findOne({ phone: wp.phone });
-    if (!worker) {
-      worker = await Worker.create({
-        name: wp.name,
-        phone: wp.phone,
-        dailyWage: wp.dailyWage,
-        profession: professions[wp.profIndex % professions.length]._id,
-        site: sites[wp.siteIndex % sites.length]._id,
-        joiningDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-        status: 'active',
-        createdBy: superAdmin._id,
-      });
-      logger.info(`Worker created: ${worker.name}`);
-    }
-    workers.push(worker);
-  }
-
-  // 7. Seed Materials Across Dates
-  const now = new Date();
-  const dateOffsetsDays = [0, 1, 3, 7, 14, 30, 60, 120, 180, 240];
-
-  const materialSamples = [
-    { name: 'PPC Cement Bags', unit: 'bags', rate: 380, qty: 100, catIndex: 0, supIndex: 0 },
-    { name: 'TMT Steel Rods 12mm', unit: 'tons', rate: 58000, qty: 5, catIndex: 1, supIndex: 1 },
-    { name: 'River Sand', unit: 'cu.m', rate: 1600, qty: 20, catIndex: 2, supIndex: 4 },
-    { name: 'Coarse Aggregate 20mm', unit: 'tons', rate: 1200, qty: 30, catIndex: 3, supIndex: 4 },
-    { name: 'Red Clay Bricks', unit: 'pcs', rate: 9, qty: 5000, catIndex: 4, supIndex: 4 },
-    { name: 'Vitrified Floor Tiles', unit: 'boxes', rate: 750, qty: 80, catIndex: 5, supIndex: 3 },
-    { name: 'Acrylic Emulsion Paint', unit: 'liters', rate: 320, qty: 50, catIndex: 6, supIndex: 3 },
-    { name: 'CPVC Pipes 1 inch', unit: 'meters', rate: 220, qty: 150, catIndex: 7, supIndex: 2 },
-  ];
-
-  let matCounter = 101;
-  for (const offset of dateOffsetsDays) {
-    const recordDate = new Date(now.getTime() - offset * 24 * 60 * 60 * 1000);
-
-    for (let i = 0; i < materialSamples.length; i++) {
-      const sample = materialSamples[i];
-      const siteObj = sites[i % sites.length];
-      const invNum = `INV-2026-${matCounter++}`;
-
-      const existingMat = await Material.findOne({ invoiceNumber: invNum });
-      if (!existingMat) {
-        const totalAmt = Math.round((sample.qty * sample.rate) * 1.18);
-        await Material.create({
-          site: siteObj._id,
-          invoiceNumber: invNum,
-          supplier: suppliers[sample.supIndex % suppliers.length]._id,
-          materialName: sample.name,
-          category: materialCategories[sample.catIndex % materialCategories.length]._id,
-          quantity: sample.qty,
-          unit: sample.unit,
-          rate: sample.rate,
-          tax: 18,
-          transportCharge: 1200,
-          discount: 0,
-          totalAmount: totalAmt,
-          date: recordDate,
-          notes: `Batch delivery for ${siteObj.name}`,
-          createdBy: superAdmin._id,
-        });
-      }
-    }
-  }
-  logger.info('Material dummy entries seeded');
-
-  // 8. Seed Expenses Across Dates & Statuses & Payment Methods
-  const expenseSamples = [
-    { title: 'Diesel Fuel for Generator', amount: 12500, catIndex: 0, vendor: 'Bharat Petroleum', method: 'cash', status: 'approved' },
-    { title: 'JCB Excavator Rental', amount: 35000, catIndex: 1, vendor: 'JCB Earthmovers', method: 'bankTransfer', status: 'approved' },
-    { title: 'Worker Mess Allowance', amount: 18000, catIndex: 4, vendor: 'Annapurna Catering', method: 'cash', status: 'approved' },
-    { title: 'Site Electricity Bill', amount: 24500, catIndex: 3, vendor: 'State Electricity Board', method: 'upi', status: 'approved' },
-    { title: 'Truck Freight Charges', amount: 14000, catIndex: 5, vendor: 'Shree Ram Logistics', method: 'cheque', status: 'pending' },
-    { title: 'Mixer Machine Maintenance', amount: 8500, catIndex: 7, vendor: 'Reliable Repair Works', method: 'card', status: 'approved' },
-    { title: 'Safety Helmets & Gloves', amount: 9200, catIndex: 6, vendor: 'Suraksha Safety Store', method: 'upi', status: 'rejected' },
-  ];
-
-  let expCounter = 1;
-  for (const offset of dateOffsetsDays) {
-    const recordDate = new Date(now.getTime() - offset * 24 * 60 * 60 * 1000);
-
-    for (let i = 0; i < expenseSamples.length; i++) {
-      const sample = expenseSamples[i];
-      const siteObj = sites[(i + expCounter) % sites.length];
-      const titleUnique = `${sample.title} #${expCounter++}`;
-
-      const existingExp = await Expense.findOne({ title: titleUnique });
-      if (!existingExp) {
-        await Expense.create({
-          site: siteObj._id,
-          title: titleUnique,
-          category: expenseCategories[sample.catIndex % expenseCategories.length]._id,
-          amount: sample.amount,
-          vendor: sample.vendor,
-          description: `Operational expense recorded for ${siteObj.name}`,
-          date: recordDate,
-          paymentMethod: sample.method,
-          status: sample.status,
-          createdBy: superAdmin._id,
-        });
-      }
-    }
-  }
-  logger.info('Expense dummy entries seeded');
-
-  // 9. Seed Worker Payments Across Dates
-  for (const offset of dateOffsetsDays) {
-    const recordDate = new Date(now.getTime() - offset * 24 * 60 * 60 * 1000);
-
-    for (let i = 0; i < workers.length; i++) {
-      const worker = workers[i];
-      const workingDays = 6;
-      const dailyWage = worker.dailyWage;
-      const overtime = i % 2 === 0 ? 1200 : 0;
-      const bonus = i % 3 === 0 ? 500 : 0;
-      const advance = i % 4 === 0 ? 1000 : 0;
-      const deduction = 0;
-
-      const netSalary = (workingDays * dailyWage) + overtime + bonus - advance - deduction;
-      const pStatus = i % 2 === 0 ? 'paid' : 'pending';
-      const pMethod = i % 3 === 0 ? 'bankTransfer' : i % 2 === 0 ? 'upi' : 'cash';
-
-      const periodStart = new Date(recordDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      await WorkerPayment.create({
-        site: worker.site,
-        worker: worker._id,
-        periodStart,
-        periodEnd: recordDate,
-        workingDays,
-        dailyWage,
-        overtimeAmount: overtime,
-        bonus,
-        advance,
-        deduction,
-        netSalary,
-        status: pStatus,
-        paymentMethod: pMethod,
-        paidOn: recordDate,
-        remarks: `Weekly wage settlement for ${worker.name}`,
-        createdBy: superAdmin._id,
-      });
-    }
-  }
-  logger.info('Worker Payment dummy entries seeded');
-
-  // 10. Seed Attendance
-  for (const offset of [0, 1, 2, 3, 4, 5, 6]) {
-    const attDate = new Date(now.getTime() - offset * 24 * 60 * 60 * 1000);
-    attDate.setHours(0, 0, 0, 0);
-
-    for (const worker of workers) {
-      const existingAtt = await Attendance.findOne({ worker: worker._id, date: attDate });
-      if (!existingAtt) {
-        await Attendance.create({
-          site: worker.site,
-          worker: worker._id,
-          date: attDate,
-          status: 'present',
-          overtimeHours: 2,
-          notes: 'Standard shift completed',
-          markedBy: superAdmin._id,
-        });
-      }
-    }
-  }
-  logger.info('Attendance dummy records seeded');
-
-  logger.info('Dummy data seeding completed successfully!');
-  await mongoose.disconnect();
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-seedDummyData()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    logger.error(`Seeding failed: ${err.message}`);
-    process.exit(1);
-  });
+function dateRange(start, end) {
+  const dates = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    dates.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+// ─── Project Sites Definition ─────────────────────────────────────────────────
+const SITES_DEF = [
+  { name: "Mr. Gopi Residence",              code: "MGR001",  city: "Mannivakkam, Chennai",   status: "completed", desc: "Premium residential villa with modern architecture",                         startDaysAgo: 730 },
+  { name: "Mr. Luke Thomas Residence",       code: "MLT001",  city: "Perambur, Chennai",       status: "completed", desc: "Contemporary home with elegant design",                                   startDaysAgo: 600 },
+  { name: "Mr. Madhu Residence",             code: "MMR001",  city: "Madhavaram, Chennai",     status: "completed", desc: "Modern residential construction with quality finishes",                  startDaysAgo: 540 },
+  { name: "Mr. Prabin Residence",            code: "MPR001",  city: "Poombuhar Nagar, Chennai",status: "completed", desc: "Luxury villa with contemporary amenities",                               startDaysAgo: 480 },
+  { name: "Mrs. Veni Residence",             code: "MVR001",  city: "Senthil Nagar, Chennai",  status: "completed", desc: "Elegant residential home with modern design",                            startDaysAgo: 420 },
+  { name: "Mrs. Lathika Residence",          code: "MLR001",  city: "West Mambalam, Chennai",  status: "active",    desc: "Elegant residential project in the heart of West Mambalam",              startDaysAgo: 300 },
+  { name: "Mr. Thomas Apartments",           code: "MTA001",  city: "Annapoorna Nagar, Chennai",status:"active",    desc: "Modern apartment complex featuring contemporary amenities",               startDaysAgo: 180 },
+  { name: "Mr. Vasudevan Residence",         code: "MVD001",  city: "Poombukar Nagar, Chennai",status: "active",    desc: "Custom-designed luxury residence with premium finishes",                  startDaysAgo: 150 },
+  { name: "Mr. Samuel Sathish Residence",    code: "MSS001",  city: "Vadaperumbakkam, Chennai", status: "active",    desc: "Modern residential villa featuring spacious interiors",                  startDaysAgo: 120 },
+  { name: "Mr. Krishna Menon Residence",     code: "MKM001",  city: "Tiruvottriyur, Chennai",  status: "active",    desc: "Contemporary residential home at Tiruvottriyur",                         startDaysAgo: 90  },
+  { name: "Mrs. Mala's Legacy Residential Apartment", code: "MLRA01", city: "Kolathur, Chennai", status: "active", desc: "Flagship residential apartment complex in Kolathur",                    startDaysAgo: 60  },
+];
+
+// ─── Reference Data ───────────────────────────────────────────────────────────
+const PROFESSION_NAMES = [
+  "Construction Labourer", "Mason / Bricklayer", "Carpenter", "Electrician",
+  "Plumber", "Painter", "Tile Worker", "Welder", "Steel Fixer", "Helper",
+];
+
+const MATERIAL_CATEGORY_NAMES = [
+  { name: "Cement & Concrete",  desc: "Cement bags, concrete mix, RMC" },
+  { name: "Steel & Iron",       desc: "TMT bars, angle iron, plates" },
+  { name: "Bricks & Blocks",    desc: "Red bricks, hollow blocks, AAC blocks" },
+  { name: "Sand & Aggregates",  desc: "River sand, M-sand, coarse aggregate, granite" },
+  { name: "Plumbing",           desc: "Pipes, fittings, valves, sanitary ware" },
+  { name: "Electrical",         desc: "Wires, conduits, switches, panels" },
+  { name: "Wood & Timber",      desc: "Plywood, teak wood, door frames" },
+  { name: "Tiles & Flooring",   desc: "Ceramic tiles, vitrified tiles, granite slabs" },
+  { name: "Paints & Chemicals", desc: "Emulsion paint, primer, admixtures, waterproofing" },
+  { name: "Miscellaneous",      desc: "Scaffolding, tools, consumables" },
+];
+
+const EXPENSE_CATEGORY_NAMES = [
+  { name: "Site Transportation", desc: "Local vehicle hire, auto, fuel for site trips" },
+  { name: "Fuel & Generator",   desc: "Diesel, petrol for equipment and generators" },
+  { name: "Equipment Rental",   desc: "JCB, concrete mixer, compactor hire charges" },
+  { name: "Office Supplies",    desc: "Stationery, printing, site registers" },
+  { name: "Safety & PPE",       desc: "Helmets, gloves, safety boots, harness" },
+  { name: "Utilities",          desc: "Temporary electricity, water tanker charges" },
+  { name: "Miscellaneous Site Expenses", desc: "Incidental and sundry site expenses" },
+  { name: "Contractor Labour",  desc: "Sub-contractor and third-party labour charges" },
+];
+
+const MATERIAL_DATA = [
+  { materialName: "OPC 53 Grade Cement",  catName: "Cement & Concrete",  unit: "Bags", rate: 370, tax: 28 },
+  { materialName: "PPC Cement",           catName: "Cement & Concrete",  unit: "Bags", rate: 340, tax: 28 },
+  { materialName: "Ready Mix Concrete M25",catName:"Cement & Concrete",  unit: "cu.m", rate: 5800, tax: 18 },
+  { materialName: "TMT Fe500D 12mm Bars", catName: "Steel & Iron",       unit: "MT",   rate: 62000, tax: 18 },
+  { materialName: "TMT Fe500D 8mm Bars",  catName: "Steel & Iron",       unit: "MT",   rate: 64000, tax: 18 },
+  { materialName: "Red Clay Bricks",      catName: "Bricks & Blocks",    unit: "Nos",  rate: 7.5,   tax: 12 },
+  { materialName: "AAC Blocks 6inch",     catName: "Bricks & Blocks",    unit: "cu.m", rate: 4200,  tax: 12 },
+  { materialName: "River Sand",           catName: "Sand & Aggregates",  unit: "CFT",  rate: 38,    tax: 5 },
+  { materialName: "M-Sand",              catName: "Sand & Aggregates",  unit: "CFT",  rate: 28,    tax: 5 },
+  { materialName: "20mm Blue Metal",      catName: "Sand & Aggregates",  unit: "CFT",  rate: 32,    tax: 5 },
+  { materialName: "CPVC Pipes 1inch",     catName: "Plumbing",           unit: "Mts",  rate: 145,   tax: 18 },
+  { materialName: "GI Pipe 2inch",        catName: "Plumbing",           unit: "Mts",  rate: 320,   tax: 18 },
+  { materialName: "2.5 sqmm FR Cable",    catName: "Electrical",         unit: "Mts",  rate: 42,    tax: 18 },
+  { materialName: "PVC Conduit 25mm",     catName: "Electrical",         unit: "Mts",  rate: 28,    tax: 18 },
+  { materialName: "Teak Wood Planks",     catName: "Wood & Timber",      unit: "CFT",  rate: 2200,  tax: 12 },
+  { materialName: "Commercial Plywood 18mm",catName:"Wood & Timber",     unit: "Sht",  rate: 1650,  tax: 18 },
+  { materialName: "Vitrified Tiles 2x2",  catName: "Tiles & Flooring",   unit: "Sqft", rate: 72,    tax: 18 },
+  { materialName: "Ceramic Wall Tiles",   catName: "Tiles & Flooring",   unit: "Sqft", rate: 55,    tax: 18 },
+  { materialName: "Exterior Emulsion",    catName: "Paints & Chemicals", unit: "Ltrs", rate: 185,   tax: 18 },
+  { materialName: "Interior Emulsion",    catName: "Paints & Chemicals", unit: "Ltrs", rate: 145,   tax: 18 },
+  { materialName: "Waterproofing Chemical",catName:"Paints & Chemicals", unit: "Ltrs", rate: 420,   tax: 18 },
+];
+
+const SUPPLIER_DATA = [
+  { name: "Sri Murugan Building Materials",  phone: "9841001001", email: "srimurugan@gmail.com",   address: "Anna Nagar, Chennai" },
+  { name: "Chennai TMT Steel Traders",       phone: "9841002002", email: "chennaisteel@gmail.com",  address: "Perambur, Chennai" },
+  { name: "Vel Construction Supplies",       phone: "9841003003", email: "velconst@gmail.com",       address: "Ambattur, Chennai" },
+  { name: "Ganesh Cement Agency",            phone: "9841004004", email: "ganeshcement@gmail.com",   address: "Kolathur, Chennai" },
+  { name: "Lakshmi Sand & Aggregates",       phone: "9841005005", email: "lakshmisand@gmail.com",    address: "Madhavaram, Chennai" },
+  { name: "Pioneer Tiles & Flooring",        phone: "9841006006", email: "pioneertiles@gmail.com",   address: "T. Nagar, Chennai" },
+  { name: "Karthik Electrical Solutions",   phone: "9841007007", email: "karthikelectric@gmail.com","address": "Chromepet, Chennai" },
+  { name: "Arun Plumbing & Sanitary Works", phone: "9841008008", email: "arunplumb@gmail.com",       address: "Tambaram, Chennai" },
+  { name: "Royal Wood & Timber Mart",        phone: "9841009009", email: "royalwood@gmail.com",      address: "Poonamallee, Chennai" },
+  { name: "Saravana Paint House",            phone: "9841010010", email: "sarapaints@gmail.com",     address: "Guindy, Chennai" },
+];
+
+const CONTRACTOR_NAMES = [
+  "Direct / In-House", "Rajan Contractors", "Murugan Labour Contractors",
+  "Sri Devi Works", "Prime Civil Contractors",
+];
+
+const PAYMENT_METHODS_EXPENSE = ["cash", "bankTransfer", "upi", "cheque", "card"];
+const PAYMENT_METHODS_WORKER  = ["cash", "bankTransfer", "upi", "cheque"];
+
+const EXPENSE_TITLES = {
+  "Site Transportation": ["Site vehicle hire", "Auto charges for material transport", "Lorry hire for debris removal"],
+  "Fuel & Generator": ["Diesel for generator", "Petrol for water pump", "Generator rental charges"],
+  "Equipment Rental": ["JCB excavation charges", "Concrete mixer hire", "Compactor plate rent", "Crane charges"],
+  "Office Supplies": ["Stationery and site registers", "Printing and photocopying", "Stamps and postal charges"],
+  "Safety & PPE": ["Safety helmets purchase", "Gloves and goggles", "Safety nets installation"],
+  "Utilities": ["Water tanker charges", "Temporary power connection", "Sewage disposal"],
+  "Miscellaneous Site Expenses": ["Miscellaneous site expenses", "Sundry charges", "Petty cash expenditure"],
+  "Contractor Labour": ["Sub-contractor charges", "Skilled labour hire", "Painting contractor advance"],
+};
+
+// ─── Main Seed Function ───────────────────────────────────────────────────────
+async function seed() {
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log('✅  Connected to MongoDB');
+
+  // ── 1. Find super admin ────────────────────────────────────────────────────
+  let superAdmin = await User.findOne({ role: 'super_admin', isDeleted: false });
+  if (!superAdmin) {
+    console.log('⚠️  No super_admin found – creating one...');
+    superAdmin = await User.create({
+      name: 'Super Admin',
+      email: 'superadmin@gmail.com',
+      password: await bcrypt.hash('superadmin1234', 12),
+      role: 'super_admin',
+      status: 'active',
+      verificationStatus: 'verified',
+    });
+    console.log('✅  Created super_admin');
+  }
+  const adminId = superAdmin._id;
+
+  // ── 2. Professions ─────────────────────────────────────────────────────────
+  console.log('\n📌  Seeding professions…');
+  const professionMap = {};
+  for (const pName of PROFESSION_NAMES) {
+    let prof = await Profession.findOne({ name: pName, isDeleted: false });
+    if (!prof) {
+      prof = await Profession.create({ name: pName, status: 'active', createdBy: adminId });
+      console.log(`  ✚ Created profession: ${pName}`);
+    }
+    professionMap[pName] = prof._id;
+  }
+
+  // ── 3. Material Categories ─────────────────────────────────────────────────
+  console.log('\n📌  Seeding material categories…');
+  const matCatMap = {};
+  for (const mc of MATERIAL_CATEGORY_NAMES) {
+    let cat = await MaterialCategory.findOne({ name: mc.name, isDeleted: false });
+    if (!cat) {
+      cat = await MaterialCategory.create({ name: mc.name, description: mc.desc, createdBy: adminId });
+      console.log(`  ✚ Created material category: ${mc.name}`);
+    }
+    matCatMap[mc.name] = cat._id;
+  }
+
+  // ── 4. Expense Categories ──────────────────────────────────────────────────
+  console.log('\n📌  Seeding expense categories…');
+  const expCatMap = {};
+  for (const ec of EXPENSE_CATEGORY_NAMES) {
+    let cat = await ExpenseCategory.findOne({ name: ec.name, isDeleted: false });
+    if (!cat) {
+      cat = await ExpenseCategory.create({ name: ec.name, description: ec.desc, createdBy: adminId });
+      console.log(`  ✚ Created expense category: ${ec.name}`);
+    }
+    expCatMap[ec.name] = cat._id;
+  }
+
+  // ── 5. Suppliers ───────────────────────────────────────────────────────────
+  console.log('\n📌  Seeding suppliers…');
+  const supplierIds = [];
+  for (const sup of SUPPLIER_DATA) {
+    let s = await Supplier.findOne({ name: sup.name, isDeleted: false });
+    if (!s) {
+      s = await Supplier.create({ ...sup, site: null, createdBy: adminId });
+      console.log(`  ✚ Created supplier: ${sup.name}`);
+    }
+    supplierIds.push(s._id);
+  }
+
+  // ── 6. Sites + Site Admins ─────────────────────────────────────────────────
+  console.log('\n📌  Seeding sites and site admins…');
+  const siteObjects = [];
+
+  for (let i = 0; i < SITES_DEF.length; i++) {
+    const def = SITES_DEF[i];
+
+    // --- Site Admin user ---
+    const adminEmail = `siteadmin${String(i + 1).padStart(2, '0')}@mala.com`;
+    let siteAdmin = await User.findOne({ email: adminEmail, isDeleted: false });
+    if (!siteAdmin) {
+      siteAdmin = await User.create({
+        name: `Site Admin – ${def.name}`,
+        email: adminEmail,
+        phone: `98400${String(10000 + i * 11)}`,
+        password: await bcrypt.hash('Admin@1234', 12),
+        role: 'site_admin',
+        status: 'active',
+        verificationStatus: 'verified',
+        designation: 'Site Manager',
+        department: 'Construction',
+        createdBy: adminId,
+      });
+      console.log(`  ✚ Created site admin: ${siteAdmin.email}`);
+    }
+
+    // --- Site ---
+    let site = await Site.findOne({ code: def.code, isDeleted: false });
+    if (!site) {
+      site = await Site.create({
+        name: def.name,
+        code: def.code,
+        address: def.city,
+        city: def.city.split(',')[0].trim(),
+        state: 'Tamil Nadu',
+        country: 'India',
+        startDate: daysAgo(def.startDaysAgo),
+        status: def.status,
+        description: def.desc,
+        assignedSiteAdmin: siteAdmin._id,
+        contactNumber: siteAdmin.phone,
+        createdBy: adminId,
+      });
+      console.log(`  ✚ Created site: ${site.name}`);
+    }
+
+    // Update site admin's assignedSite
+    if (!siteAdmin.assignedSite || String(siteAdmin.assignedSite) !== String(site._id)) {
+      await User.findByIdAndUpdate(siteAdmin._id, { assignedSite: site._id });
+    }
+
+    siteObjects.push({ site, siteAdmin, def });
+  }
+
+  // ── 7. Workers ─────────────────────────────────────────────────────────────
+  console.log('\n📌  Seeding workers…');
+  const profNames = Object.keys(professionMap);
+  const siteWorkerMap = {}; // siteId → Worker[]
+
+  for (const { site, siteAdmin, def } of siteObjects) {
+    const existingCount = await Worker.countDocuments({ site: site._id, isDeleted: false });
+    if (existingCount >= 8) {
+      console.log(`  ↷ Workers already exist for: ${site.name}`);
+      siteWorkerMap[String(site._id)] = await Worker.find({ site: site._id, isDeleted: false }).limit(20).lean();
+      continue;
+    }
+
+    const workers = [];
+    const numWorkers = rand(8, 14);
+    const firstNames = ["Rajan","Murugan","Selvam","Karthi","Suresh","Vinod","Bala","Siva","Anand","Prabhu","Kumar","Rajesh","Ganesh","Senthil","Velu","Arjun","Dinesh","Harish","Manoj","Pradeep","Sathish","Arun","Ramesh","Gopal","Vijay"];
+    const lastNames = ["Kumar","Raj","Shankar","Mani","Das","Nathan","Pandian","Rajan","Selvan","Pillai","Naidu","Krishnan","Perumal","Subramanian","Iyer"];
+
+    for (let w = 0; w < numWorkers; w++) {
+      const profName = pick(profNames);
+      const dailyWage = { "Construction Labourer": 700, "Mason / Bricklayer": 900, "Carpenter": 950, "Electrician": 1000, "Plumber": 900, "Painter": 800, "Tile Worker": 850, "Welder": 1050, "Steel Fixer": 950, "Helper": 600 }[profName] || 700;
+      const wName = `${pick(firstNames)} ${pick(lastNames)}`;
+      const wPhone = `9${rand(600000000, 999999999)}`;
+
+      const worker = await Worker.create({
+        site: site._id,
+        name: wName,
+        phone: wPhone,
+        profession: professionMap[profName],
+        dailyWage,
+        joiningDate: daysAgo(rand(10, def.startDaysAgo - 10)),
+        address: `${rand(1, 100)}, ${def.city}`,
+        status: def.status === 'completed' ? 'inactive' : 'active',
+        createdBy: siteAdmin._id,
+      });
+      workers.push(worker.toObject ? worker.toObject() : worker);
+    }
+    siteWorkerMap[String(site._id)] = workers;
+    console.log(`  ✚ Created ${workers.length} workers for: ${site.name}`);
+  }
+
+  // ── 8. Attendance Records ──────────────────────────────────────────────────
+  console.log('\n📌  Seeding attendance records…');
+  for (const { site, siteAdmin, def } of siteObjects) {
+    const existingAtt = await Attendance.countDocuments({ site: site._id, isDeleted: false });
+    if (existingAtt > 50) {
+      console.log(`  ↷ Attendance already seeded for: ${site.name}`);
+      continue;
+    }
+
+    const workers = siteWorkerMap[String(site._id)] || [];
+    if (!workers.length) continue;
+
+    const daysBack = Math.min(def.startDaysAgo, 180);
+    const endDate  = def.status === 'completed' ? daysAgo(60)  : daysAgo(0);
+    const startDate= daysAgo(daysBack);
+    const allDates = dateRange(startDate, endDate);
+    let attCount = 0;
+
+    for (const d of allDates) {
+      // Only weekdays
+      if (d.getDay() === 0) continue; // Skip Sundays
+
+      const dayWorkers = workers.slice(0, rand(3, workers.length));
+      for (const w of dayWorkers) {
+        const statusOpts = ['present','present','present','halfDay','present'];
+        const status = pick(statusOpts);
+        const ot = status === 'present' && Math.random() > 0.85 ? rand(1, 3) : 0;
+        const wage = w.dailyWage || 700;
+        const labCost = status === 'halfDay' ? wage / 2 : wage;
+        const otAmt   = ot * (wage / 8) * 1.5;
+        const total   = labCost + otAmt;
+
+        await Attendance.create({
+          site:           site._id,
+          date:           d,
+          contractor:     pick(CONTRACTOR_NAMES),
+          profession:     w.profession,
+          professionName: profNames.find(p => String(professionMap[p]) === String(w.profession)) || 'Construction Labourer',
+          workerName:     w.name,
+          mobileNumber:   w.phone,
+          gender:         'male',
+          inTime:         '08:00',
+          outTime:        status === 'halfDay' ? '13:00' : '18:00',
+          workingHours:   status === 'halfDay' ? 5 : 9,
+          status,
+          dailyWage:      wage,
+          overtimeHours:  ot,
+          overtimeAmount: otAmt,
+          totalAmount:    total,
+          dailyLabourCost:total,
+          markedBy:       siteAdmin._id,
+        });
+        attCount++;
+      }
+    }
+    console.log(`  ✚ Created ${attCount} attendance records for: ${site.name}`);
+  }
+
+  // ── 9. Materials (Purchases) ───────────────────────────────────────────────
+  console.log('\n📌  Seeding material purchases…');
+  for (const { site, siteAdmin, def } of siteObjects) {
+    const existingMat = await Material.countDocuments({ site: site._id, isDeleted: false });
+    if (existingMat >= 20) {
+      console.log(`  ↷ Materials already seeded for: ${site.name}`);
+      continue;
+    }
+
+    const numPurchases = rand(20, 35);
+    let matCount = 0;
+    for (let m = 0; m < numPurchases; m++) {
+      const matDef    = pick(MATERIAL_DATA);
+      const catId     = matCatMap[matDef.catName];
+      if (!catId) continue;
+
+      const supplierId = pick(supplierIds);
+      const qty       = randF(2, 100);
+      const rate      = matDef.rate * randF(0.9, 1.1);
+      const taxAmt    = rate * qty * (matDef.tax / 100);
+      const transport = randF(500, 3000);
+      const total     = rate * qty + taxAmt + transport;
+      const daysOffset= rand(10, Math.min(def.startDaysAgo, 365));
+
+      await Material.create({
+        site:           site._id,
+        invoiceNumber:  `INV-${site.code}-${String(m + 1).padStart(3, '0')}`,
+        supplier:       supplierId,
+        materialName:   matDef.materialName,
+        category:       catId,
+        quantity:       qty,
+        unit:           matDef.unit,
+        rate:           parseFloat(rate.toFixed(2)),
+        tax:            matDef.tax,
+        transportCharge:parseFloat(transport.toFixed(2)),
+        discount:       Math.random() > 0.8 ? rand(1, 5) : 0,
+        totalAmount:    parseFloat(total.toFixed(2)),
+        date:           daysAgo(daysOffset),
+        notes:          `Delivery for ${site.name} – ${matDef.materialName}`,
+        createdBy:      siteAdmin._id,
+      });
+      matCount++;
+    }
+    console.log(`  ✚ Created ${matCount} material purchases for: ${site.name}`);
+  }
+
+  // ── 10. Expenses ───────────────────────────────────────────────────────────
+  console.log('\n📌  Seeding expenses…');
+  for (const { site, siteAdmin, def } of siteObjects) {
+    const existingExp = await Expense.countDocuments({ site: site._id, isDeleted: false });
+    if (existingExp >= 15) {
+      console.log(`  ↷ Expenses already seeded for: ${site.name}`);
+      continue;
+    }
+
+    const numExpenses = rand(18, 30);
+    let expCount = 0;
+    for (let e = 0; e < numExpenses; e++) {
+      const catName = pick(Object.keys(expCatMap));
+      const catId   = expCatMap[catName];
+      const titles  = EXPENSE_TITLES[catName] || ["Site expense"];
+      const statusOpts = ['pending','pending','approved','approved','approved','rejected'];
+      const daysOffset = rand(5, Math.min(def.startDaysAgo, 365));
+
+      await Expense.create({
+        site:          site._id,
+        title:         pick(titles),
+        category:      catId,
+        amount:        randF(500, 25000),
+        vendor:        pick(["M/s Rajan Works", "Murugan Hire", "Vel Agencies", "Sri Devi Contractors", "Sathish Enterprises"]),
+        description:   `Expense for ${site.name}`,
+        date:          daysAgo(daysOffset),
+        paymentMethod: pick(PAYMENT_METHODS_EXPENSE),
+        status:        pick(statusOpts),
+        createdBy:     siteAdmin._id,
+      });
+      expCount++;
+    }
+    console.log(`  ✚ Created ${expCount} expenses for: ${site.name}`);
+  }
+
+  // ── 11. Worker Payments ────────────────────────────────────────────────────
+  console.log('\n📌  Seeding worker payments…');
+  for (const { site, siteAdmin, def } of siteObjects) {
+    const existingPay = await WorkerPayment.countDocuments({ site: site._id, isDeleted: false });
+    if (existingPay >= 10) {
+      console.log(`  ↷ Worker payments already seeded for: ${site.name}`);
+      continue;
+    }
+
+    const workers = siteWorkerMap[String(site._id)] || [];
+    let payCount = 0;
+
+    for (const w of workers) {
+      const numPayments = rand(2, 5);
+      for (let p = 0; p < numPayments; p++) {
+        const periodEndOffset   = rand(30, Math.min(def.startDaysAgo, 350));
+        const periodStartOffset = periodEndOffset + 30;
+        const workingDays = rand(20, 28);
+        const wage        = w.dailyWage || 700;
+        const ot          = randF(0, 3000);
+        const bonus       = Math.random() > 0.8 ? rand(500, 2000) : 0;
+        const advance     = Math.random() > 0.7 ? rand(1000, 5000) : 0;
+        const deduction   = Math.random() > 0.9 ? rand(200, 1000)  : 0;
+        const net         = (workingDays * wage) + ot + bonus - advance - deduction;
+        const isPaid      = Math.random() > 0.2;
+
+        await WorkerPayment.create({
+          site:          site._id,
+          worker:        w._id,
+          periodStart:   daysAgo(periodStartOffset),
+          periodEnd:     daysAgo(periodEndOffset),
+          workingDays,
+          dailyWage:     wage,
+          overtimeAmount:parseFloat(ot.toFixed(2)),
+          bonus,
+          advance,
+          deduction,
+          netSalary:     parseFloat(net.toFixed(2)),
+          status:        isPaid ? 'paid' : 'pending',
+          paymentMethod: pick(PAYMENT_METHODS_WORKER),
+          paidOn:        isPaid ? daysAgo(rand(1, periodEndOffset)) : null,
+          remarks:       `Monthly payment – ${site.name}`,
+          createdBy:     siteAdmin._id,
+        });
+        payCount++;
+      }
+    }
+    console.log(`  ✚ Created ${payCount} worker payments for: ${site.name}`);
+  }
+
+  console.log('\n🎉  Dummy data seeding complete!\n');
+  console.log('   Site Admin Login: siteadmin01@mala.com … siteadmin11@mala.com');
+  console.log('   Password for all site admins: Admin@1234\n');
+  await mongoose.disconnect();
+  process.exit(0);
+}
+
+seed().catch((err) => {
+  console.error('❌  Seed error:', err);
+  process.exit(1);
+});

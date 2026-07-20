@@ -361,7 +361,7 @@ export default function Profile() {
                 </div>
 
                 <div className="form-grid">
-                  <FormField label="Full Name *" required error={profileForm.formState.errors.name?.message}>
+                  <FormField label="Full Name" required error={profileForm.formState.errors.name?.message}>
                     <input
                       type="text"
                       className="form-input"
@@ -370,7 +370,7 @@ export default function Profile() {
                     />
                   </FormField>
 
-                  <FormField label="Email Address *" required error={profileForm.formState.errors.email?.message}>
+                  <FormField label="Email Address" required error={profileForm.formState.errors.email?.message}>
                     <input
                       type="email"
                       className="form-input"
@@ -552,7 +552,7 @@ export default function Profile() {
                 <h2><Lock size={18} /> Change Account Password</h2>
                 <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} noValidate>
                   <div className="form-grid">
-                    <FormField label="Current Password *" required error={passwordForm.formState.errors.currentPassword?.message} className="form-field--full">
+                    <FormField label="Current Password" required error={passwordForm.formState.errors.currentPassword?.message} className="form-field--full">
                       <div className="login-password-wrapper">
                         <input
                           type={showCurrentPassword ? 'text' : 'password'}
@@ -566,7 +566,7 @@ export default function Profile() {
                       </div>
                     </FormField>
 
-                    <FormField label="New Password *" required error={passwordForm.formState.errors.newPassword?.message}>
+                    <FormField label="New Password" required error={passwordForm.formState.errors.newPassword?.message}>
                       <div className="login-password-wrapper">
                         <input
                           type={showNewPassword ? 'text' : 'password'}
@@ -587,7 +587,7 @@ export default function Profile() {
                       </div>
                     </FormField>
 
-                    <FormField label="Confirm New Password *" required error={passwordForm.formState.errors.confirmPassword?.message}>
+                    <FormField label="Confirm New Password " required error={passwordForm.formState.errors.confirmPassword?.message}>
                       <div className="login-password-wrapper">
                         <input
                           type={showConfirmPassword ? 'text' : 'password'}
