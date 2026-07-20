@@ -190,7 +190,7 @@ export default function SiteAdmins() {
         <span>{counts.total ?? 0} matching supervisors</span>
         <span>{counts.active ?? 0} active</span>
         <span>{counts.siteAdminCount ?? 0} site admins</span>
-        <span>{counts.superAdminCount ?? 0} super admins</span>
+        {!!counts.superAdminCount && <span>{counts.superAdminCount} super admins</span>}
       </div>
 
       {newAdminCreds && (

@@ -67,7 +67,7 @@ async function createSiteAdmin(data, actor, req) {
 
 async function listSiteAdmins(queryParams) {
   const includeDeleted = queryParams.showDeleted === true || queryParams.showDeleted === 'true';
-  return userRepository.findAllSiteAdmins({ ...queryParams, includeDeleted });
+  return userRepository.findAllSiteAdmins({ ...queryParams, role: 'site_admin', includeDeleted });
 }
 
 async function getSiteAdminById(id) {

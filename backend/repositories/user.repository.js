@@ -20,7 +20,7 @@ async function findAllSiteAdmins({
   page = 1,
   limit = 20,
   search,
-  role,
+  role = 'site_admin',
   assignedSite,
   status,
   verificationStatus,
@@ -35,7 +35,7 @@ async function findAllSiteAdmins({
   includeDeleted = false,
 } = {}) {
   const query = {};
-  if (role) query.role = role;
+  query.role = role || 'site_admin';
   if (status) query.status = status;
   if (assignedSite) query.assignedSite = assignedSite;
   if (verificationStatus) query.verificationStatus = verificationStatus;
