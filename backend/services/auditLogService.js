@@ -16,9 +16,11 @@ async function recordActivity({
   req = null,
 }) {
   try {
+    const actorId = actor?._id || actor || null;
+    const actorRole = actor?.role || 'user';
     await ActivityLog.create({
-      actor: actor._id,
-      actorRole: actor.role,
+      actor: actorId,
+      actorRole,
       action,
       entityType,
       entityId,
@@ -33,4 +35,4 @@ async function recordActivity({
   }
 }
 
-module.exports = { recordActivity };
+module.exports = { recordActivity, logActivity: recordActivity };

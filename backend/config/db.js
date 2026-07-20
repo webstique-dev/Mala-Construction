@@ -25,6 +25,21 @@ async function connectDB() {
     autoIndex: process.env.NODE_ENV !== 'production', // build indexes automatically only outside prod
   });
 
+  try {
+    const collections = await mongoose.connection.db.listCollections({ name: 'attendances' }).toArray();
+    if (collections.length > 0) {
+      const attendanceCol = mongoose.connection.db.collection('attendances');
+      const indexes = await attendanceCol.indexes();
+      const hasWorkerDateUnique = indexes.some((idx) => idx.name === 'worker_1_date_1');
+      if (hasWorkerDateUnique) {
+        await attendanceCol.dropIndex('worker_1_date_1');
+        logger.info('Dropped legacy worker_1_date_1 unique index from attendances collection');
+      }
+    }
+  } catch (err) {
+    logger.warn(`Index cleanup note: ${err.message}`);
+  }
+
   return mongoose.connection;
 }
 

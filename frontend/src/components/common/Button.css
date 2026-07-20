@@ -123,9 +123,11 @@
   border-top-color: var(--color-text-secondary);
 }
 
-.module-page__row-actions button {
-  border-radius: 50%;
-  border: 1px solid transparent;
+.module-page__row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 @keyframes btn-spin {

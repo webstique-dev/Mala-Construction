@@ -19,15 +19,13 @@ import Drawer from '../../components/drawers/Drawer';
 import './Reports.css';
 
 const REPORT_TYPES = [
-  { value: 'daily', label: 'Daily Activity Logs' },
   { value: 'monthly', label: 'Monthly Financial Statement' },
-  { value: 'site', label: 'Project Site Report' },
-  { value: 'expense', label: 'Total Company Expenses' },
-  { value: 'payment', label: 'Worker Payment Report' },
+  { value: 'worker', label: 'Labour Attendance Registry' },
+  { value: 'material', label: 'Material Logistics & Costs' },
+  { value: 'expense', label: 'Overhead Expenses' },
+  { value: 'site', label: 'Project Site Statement' },
   { value: 'weekly', label: 'Weekly Summary Statement' },
   { value: 'yearly', label: 'Yearly Financial Ledger' },
-  { value: 'material', label: 'Material Logistics Report' },
-  { value: 'worker', label: 'Worker Attendance Registry' },
   { value: 'category', label: 'Category Expenditure Breakdown' },
   { value: 'vendor', label: 'Supplier & Vendor Accounts' },
   { value: 'custom', label: 'Custom Period Breakdown' },
@@ -313,8 +311,8 @@ export default function Reports() {
         <div className="reports-page__kpi-card">
           <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-warning-500)' }}><CreditCard size={20} /></div>
           <div className="reports-page__kpi-details">
-            <span className="reports-page__kpi-label">Wages Paid</span>
-            <span className="reports-page__kpi-value">{formatCurrency(reportData?.summary?.paymentTotal || 0)}</span>
+            <span className="reports-page__kpi-label">Wages / Labour Cost</span>
+            <span className="reports-page__kpi-value">{formatCurrency((reportData?.summary?.paymentTotal || 0) + (reportData?.summary?.attendanceTotal || 0))}</span>
           </div>
         </div>
 

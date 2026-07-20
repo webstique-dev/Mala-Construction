@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LogOut, Shield, Eye, EyeOff, User, Settings, Bell, Camera, Trash2 } from 'lucide-react';
+import {
+  LogOut, Shield, Eye, EyeOff, User, Settings, Camera, Trash2,
+  Mail, Phone, Briefcase, Laptop, Smartphone, Globe, Lock,
+  Upload, CheckCircle2, AlertCircle
+} from 'lucide-react';
 import Button from '../../components/common/Button';
 import FormField from '../../components/forms/FormField';
 import Card from '../../components/ui/Card';
@@ -23,23 +27,18 @@ function getUploadErrorMessage(error) {
   if (status === 400) {
     return serverMessage || 'Invalid image format. Please choose a JPG, PNG, or WEBP file.';
   }
-
   if (status === 413) {
     return 'File too large. Please choose an image smaller than 2MB.';
   }
-
   if (status === 401) {
     return 'You are not authorized to upload a profile image.';
   }
-
   if (status === 500 || status === 503) {
     return serverMessage || 'Cloudinary upload failed. Please verify the Cloudinary configuration and try again.';
   }
-
   if (error?.message?.includes('Network')) {
     return 'Network error. Please check your connection and try again.';
   }
-
   return serverMessage || 'Upload failed. Please try again.';
 }
 
@@ -89,7 +88,6 @@ export default function Profile() {
   // Form states
   const profileForm = useForm({ defaultValues: { name: '', email: '', phone: '', address: '', designation: '', companyInfo: '', username: '', biography: '' } });
   const appPrefForm = useForm({ defaultValues: { theme: 'system', timezone: 'Asia/Kolkata', dateFormat: 'YYYY-MM-DD', compactMode: false, paginationSize: 10 } });
-  const notifPrefForm = useForm({ defaultValues: { lowStock: true, workerPayments: true, expenses: true, loginAlerts: true, reportGeneration: true, securityAlerts: true, systemUpdates: true, inApp: true, email: true, push: false } });
   const passwordForm = useForm({ defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' } });
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -124,20 +122,6 @@ export default function Profile() {
           dateFormat: settingsPayload.settings.dateFormat || 'YYYY-MM-DD',
           compactMode: settingsPayload.settings.compactMode || false,
           paginationSize: settingsPayload.settings.paginationSize || 10
-        });
-      }
-      if (settingsPayload.notifications) {
-        notifPrefForm.reset({
-          lowStock: settingsPayload.notifications.lowStock ?? true,
-          workerPayments: settingsPayload.notifications.workerPayments ?? true,
-          expenses: settingsPayload.notifications.expenses ?? true,
-          loginAlerts: settingsPayload.notifications.loginAlerts ?? true,
-          reportGeneration: settingsPayload.notifications.reportGeneration ?? true,
-          securityAlerts: settingsPayload.notifications.securityAlerts ?? true,
-          systemUpdates: settingsPayload.notifications.systemUpdates ?? true,
-          inApp: settingsPayload.notifications.inApp ?? true,
-          email: settingsPayload.notifications.email ?? true,
-          push: settingsPayload.notifications.push ?? false
         });
       }
     }
@@ -219,19 +203,6 @@ export default function Profile() {
     }
   };
 
-  // Submit Notification Preferences Form
-  const onNotifPrefSubmit = async (values) => {
-    try {
-      const formData = new FormData();
-      formData.append('notificationsData', JSON.stringify(values));
-      await updateSettingsMutation.mutateAsync(formData);
-      await refreshUser();
-      toast.success('Notification preferences updated successfully.');
-    } catch (err) {
-      toast.error('Failed to update preferences.');
-    }
-  };
-
   // Submit Password Form
   const onPasswordSubmit = async (values) => {
     try {
@@ -252,145 +223,243 @@ export default function Profile() {
 
   const sessions = sessionsPayload?.sessions || [];
   const avatarUrl = photoPreview || user?.photo?.url || settingsPayload?.profile?.photo?.url;
+  const userRoleDisplay = user?.role === 'super_admin' ? 'Super Admin' : 'Site Admin';
+  const userInitials = (user?.name || 'User').split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div className="profile-page">
       <div className="profile-page__header">
-        <h1>Personal Preferences & Account</h1>
-        <p>Configure dashboard layouts, notification switches, and account credential security.</p>
+        <h1>Personal Profile & Settings</h1>
+        <p>Manage your user account credentials, preferences, and active security sessions.</p>
       </div>
 
-      {/* Tabs list */}
+      {/* Hero Banner Card */}
+      <div className="profile-hero-card">
+        <div className="profile-hero-card__banner" />
+        <div className="profile-hero-card__content">
+          <div className="profile-hero-card__avatar-wrapper">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={user?.name || 'User'} className="profile-hero-card__avatar-img" />
+            ) : (
+              <div className="profile-hero-card__avatar-fallback">{userInitials}</div>
+            )}
+            <label htmlFor="hero-photo-upload" className="profile-hero-card__avatar-edit-btn" title="Change Avatar">
+              <Camera size={14} />
+            </label>
+            <input id="hero-photo-upload" type="file" accept="image/*" onChange={onPhotoChange} style={{ display: 'none' }} />
+          </div>
+
+          <div className="profile-hero-card__info">
+            <div className="profile-hero-card__name-row">
+              <h2>{user?.name || 'User Profile'}</h2>
+              <span className="profile-hero-card__role-badge">
+                <Shield size={12} /> {userRoleDisplay}
+              </span>
+            </div>
+            <div className="profile-hero-card__meta-list">
+              {user?.email && (
+                <span className="profile-hero-card__meta-item">
+                  <Mail size={14} /> {user.email}
+                </span>
+              )}
+              {user?.phone && (
+                <span className="profile-hero-card__meta-item">
+                  <Phone size={14} /> {user.phone}
+                </span>
+              )}
+              {user?.designation && (
+                <span className="profile-hero-card__meta-item">
+                  <Briefcase size={14} /> {user.designation}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="profile-hero-card__quick-actions">
+            <Button
+              variant={activeTab === 'profile' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setActiveTab('profile')}
+            >
+              <User size={14} className="icon-margin-right" /> Edit Profile
+            </Button>
+            <Button
+              variant={activeTab === 'security' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setActiveTab('security')}
+            >
+              <Lock size={14} className="icon-margin-right" /> Password & Security
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
       <div className="profile-page__tabs">
         <button
+          type="button"
           className={`profile-page__tab-btn ${activeTab === 'profile' ? 'profile-page__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('profile')}
         >
-          <User size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          Profile Details
+          <User size={16} /> Profile Details
         </button>
-        <button
+        {/* <button
+          type="button"
           className={`profile-page__tab-btn ${activeTab === 'preferences' ? 'profile-page__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('preferences')}
         >
-          <Settings size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          App Preferences
-        </button>
-        {/* <button
-          className={`profile-page__tab-btn ${activeTab === 'notifications' ? 'profile-page__tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('notifications')}
-        >
-          <Bell size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          Notifications Toggles
+          <Settings size={16} /> App Preferences
         </button> */}
         <button
+          type="button"
           className={`profile-page__tab-btn ${activeTab === 'security' ? 'profile-page__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('security')}
         >
-          <Shield size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          Security & Sessions
+          <Shield size={16} /> Security & Sessions
         </button>
       </div>
 
       {isLoadingSettings ? (
         <Card className="profile-card">
-          <p>Loading settings profile...</p>
+          <p className="table-empty-text">Loading user profile settings...</p>
         </Card>
       ) : (
         <div className="profile-page__content">
-          {/* TAB: PROFILE DETAILS */}
+          {/* TAB 1: PROFILE DETAILS */}
           {activeTab === 'profile' && (
             <Card className="profile-card">
               <h2><User size={18} /> Update Profile Information</h2>
               <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
-
-                {/* Photo Upload and Preview */}
-                {/* <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
-                  <div style={{ position: 'relative', width: 80, height: 80, borderRadius: '50%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                {/* Photo Uploader Component */}
+                <div className="profile-photo-section">
+                  <div className="profile-photo-preview">
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={avatarUrl} alt="Avatar Preview" />
                     ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
-                        {user?.name?.split(' ').map(n=>n[0]).join('')}
-                      </div>
-                    )}
-                    <label htmlFor="photo-upload" style={{ position: 'absolute', bottom: 0, right: 0, left: 0, background: 'rgba(0,0,0,0.5)', color: 'white', textAlign: 'center', fontSize: 10, padding: '2px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Camera size={12} />
-                    </label>
-                    <input id="photo-upload" type="file" accept="image/*" onChange={onPhotoChange} style={{ display: 'none' }} />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'bold' }}>Profile Photo</span>
-                    <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4 }}>PNG, JPG or WEBP. Max 2MB.</p>
-                    {avatarUrl && (
-                      <button
-                        type="button"
-                        className="link-btn text-danger"
-                        onClick={handleRemovePhoto}
-                        style={{ fontSize: 'var(--font-size-xs)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-danger-500)', display: 'flex', alignItems: 'center', gap: 4 }}
-                      >
-                        <Trash2 size={12} /> Remove Photo
-                      </button>
+                      <div className="profile-photo-preview-fallback">{userInitials}</div>
                     )}
                   </div>
-                </div> */}
+                  <div className="profile-photo-actions">
+                    <span>Profile Photo</span>
+                    <p>Supported formats: PNG, JPG, or WEBP (Max size: 2MB)</p>
+                    <div className="profile-photo-buttons">
+                      <label htmlFor="photo-file-upload" className="profile-photo-btn">
+                        <Upload size={14} /> {photoFile ? 'Change Selected File' : 'Upload Image'}
+                      </label>
+                      <input id="photo-file-upload" type="file" accept="image/*" onChange={onPhotoChange} style={{ display: 'none' }} />
+                      {avatarUrl && (
+                        <button
+                          type="button"
+                          className="profile-photo-btn profile-photo-btn--danger"
+                          onClick={handleRemovePhoto}
+                        >
+                          <Trash2 size={14} /> Remove Photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="form-grid">
-                  <FormField label="Full Name" required error={profileForm.formState.errors.name?.message}>
-                    <input type="text" className="form-input" {...profileForm.register('name', { required: 'Name is required' })} />
+                  <FormField label="Full Name *" required error={profileForm.formState.errors.name?.message}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Your full name"
+                      {...profileForm.register('name', { required: 'Full name is required' })}
+                    />
                   </FormField>
 
-                  <FormField label="Email address" required error={profileForm.formState.errors.email?.message}>
-                    <input type="email" className="form-input" {...profileForm.register('email', { required: 'Email is required' })} />
+                  <FormField label="Email Address *" required error={profileForm.formState.errors.email?.message}>
+                    <input
+                      type="email"
+                      className="form-input"
+                      placeholder="your.email@example.com"
+                      {...profileForm.register('email', { required: 'Email is required' })}
+                    />
                   </FormField>
 
                   <FormField label="Phone Number" error={profileForm.formState.errors.phone?.message}>
-                    <input type="text" className="form-input" {...profileForm.register('phone')} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. +91 98765 43210"
+                      {...profileForm.register('phone')}
+                    />
                   </FormField>
 
                   <FormField label="Username">
-                    <input type="text" className="form-input" {...profileForm.register('username')} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Account username"
+                      {...profileForm.register('username')}
+                    />
                   </FormField>
 
-                  <FormField label="Designation">
-                    <input type="text" className="form-input" {...profileForm.register('designation')} />
+                  <FormField label="Designation / Role Title">
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Site Engineer / Project Admin"
+                      {...profileForm.register('designation')}
+                    />
                   </FormField>
 
-                  <FormField label="Company Info">
-                    <input type="text" className="form-input" {...profileForm.register('companyInfo')} />
+                  <FormField label="Company / Organization Info">
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Mala Constructions"
+                      {...profileForm.register('companyInfo')}
+                    />
                   </FormField>
 
-                  <FormField label="Biography" className="form-field--full">
-                    <textarea rows="3" className="form-input" style={{ resize: 'none' }} {...profileForm.register('biography')}></textarea>
+                  <FormField label="Biography / Short Bio" className="form-field--full">
+                    <textarea
+                      rows="3"
+                      className="form-input"
+                      style={{ resize: 'none', padding: `10px` }}
+                      placeholder="Tell us a little bit about your work responsibilities..."
+                      {...profileForm.register('biography')}
+                    />
                   </FormField>
 
-                  <FormField label="Address" className="form-field--full">
-                    <textarea rows="2" className="form-input" style={{ resize: 'none' }} {...profileForm.register('address')}></textarea>
+                  <FormField label="Office / Site Address" className="form-field--full">
+                    <textarea
+                      rows="2"
+                      className="form-input"
+                      style={{ resize: 'none', padding: `10px` }}
+                      placeholder="Primary site address or office location"
+                      {...profileForm.register('address')}
+                    />
                   </FormField>
                 </div>
 
-                <Button type="submit" isLoading={updateSettingsMutation.isPending || isUploading}>
-                  {isUploading ? 'Uploading image...' : 'Save Profile Changes'}
-                </Button>
+                <div className="form-actions-footer">
+                  <Button type="submit" isLoading={updateSettingsMutation.isPending || isUploading}>
+                    {isUploading ? 'Uploading Image...' : 'Save Profile Changes'}
+                  </Button>
+                </div>
               </form>
             </Card>
           )}
 
-          {/* TAB: APP PREFERENCES */}
+          {/* TAB 2: APP PREFERENCES */}
           {activeTab === 'preferences' && (
             <Card className="profile-card">
-              <h2><Settings size={18} /> Application Layout Settings</h2>
+              <h2><Settings size={18} /> Application Display & Layout Preferences</h2>
               <form onSubmit={appPrefForm.handleSubmit(onAppPrefSubmit)}>
                 <div className="form-grid">
-                  <FormField label="Theme Select">
+                  <FormField label="Appearance Theme">
                     <select className="form-select" {...appPrefForm.register('theme')}>
                       <option value="light">Light Mode</option>
                       <option value="dark">Dark Mode</option>
-                      <option value="system">Follow System</option>
+                      <option value="system">Follow System Theme</option>
                     </select>
                   </FormField>
 
-                  <FormField label="Timezone">
+                  <FormField label="Timezone Scope">
                     <select className="form-select" {...appPrefForm.register('timezone')}>
                       <option value="Asia/Kolkata">India (IST) - Asia/Kolkata</option>
                       <option value="UTC">Coordinated Universal Time (UTC)</option>
@@ -406,104 +475,38 @@ export default function Profile() {
                     </select>
                   </FormField>
 
-                  <FormField label="Default Page size">
+                  <FormField label="Default Page Table Rows">
                     <select className="form-select" {...appPrefForm.register('paginationSize', { valueAsNumber: true })}>
-                      <option value={5}>5 Rows</option>
-                      <option value={10}>10 Rows</option>
-                      <option value={20}>20 Rows</option>
-                      <option value={50}>50 Rows</option>
+                      <option value={5}>5 Rows per page</option>
+                      <option value={10}>10 Rows per page</option>
+                      <option value={20}>20 Rows per page</option>
+                      <option value={50}>50 Rows per page</option>
                     </select>
                   </FormField>
 
-                  <div className="form-field--full" style={{ marginTop: 8 }}>
+                  <div className="form-field--full">
                     <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                       <input type="checkbox" {...appPrefForm.register('compactMode')} />
-                      <span>Compact Mode Table Density</span>
+                      <span>Enable Compact Layout Table Density</span>
                     </label>
                   </div>
                 </div>
 
-                <Button type="submit" isLoading={updateSettingsMutation.isPending}>
-                  Save Layout Preferences
-                </Button>
+                <div className="form-actions-footer">
+                  <Button type="submit" isLoading={updateSettingsMutation.isPending}>
+                    Save Preferences
+                  </Button>
+                </div>
               </form>
             </Card>
           )}
 
-          {/* TAB: NOTIFICATIONS */}
-          {activeTab === 'notifications' && (
-            <Card className="profile-card">
-              <h2><Bell size={18} /> Configure Notification Switches</h2>
-              <form onSubmit={notifPrefForm.handleSubmit(onNotifPrefSubmit)}>
-
-                <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: 6, marginBottom: 12 }}>Notification Triggers</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('lowStock')} />
-                    <span>Low Stock Warnings & Material Threshold Alerts</span>
-                  </label>
-
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('workerPayments')} />
-                    <span>Worker Salary Payments logged</span>
-                  </label>
-
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('expenses')} />
-                    <span>Site Overhead Expense Review submissions & responses</span>
-                  </label>
-
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('loginAlerts')} />
-                    <span>Login security logs & connection alerts</span>
-                  </label>
-
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('reportGeneration')} />
-                    <span>Report Generation export logs</span>
-                  </label>
-
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('securityAlerts')} />
-                    <span>Password updates and profile pref resets</span>
-                  </label>
-
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('systemUpdates')} />
-                    <span>System updates and global announcements</span>
-                  </label>
-                </div>
-
-                <h3 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'bold', borderBottom: '1px solid var(--color-border)', paddingBottom: 6, marginBottom: 12 }}>Preferred Notification Modes</h3>
-                <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('inApp')} />
-                    <span>In-App Center</span>
-                  </label>
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" {...notifPrefForm.register('email')} />
-                    <span>Email Delivery</span>
-                  </label>
-                  <label className="checkbox-filter" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: 0.6 }}>
-                    <input type="checkbox" disabled {...notifPrefForm.register('push')} />
-                    <span>Push Alerts (Future-ready)</span>
-                  </label>
-                </div>
-
-                <Button type="submit" isLoading={updateSettingsMutation.isPending}>
-                  Save Notifications Preferences
-                </Button>
-              </form>
-            </Card>
-          )}
-
-          {/* TAB: SECURITY & SESSIONS */}
+          {/* TAB 3: SECURITY & SESSIONS */}
           {activeTab === 'security' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-
               {/* Active Sessions list */}
               <Card className="profile-card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
                   <h2 style={{ marginBottom: 0 }}><Shield size={18} /> Active Devices & Sessions</h2>
                   {sessions.length > 1 && (
                     <Button variant="danger" size="sm" onClick={() => terminateOtherSessions.mutate()}>
@@ -512,89 +515,101 @@ export default function Profile() {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {sessions.map((s) => (
-                    <div className="session-item" key={s._id}>
-                      <div className="session-item__details">
-                        <span className="session-item__device">
-                          {s.userAgent}
-                          {s.isCurrent && <span className="session-item__current-badge" style={{ marginLeft: 8 }}>Current Session</span>}
-                        </span>
-                        <span className="session-item__meta">
-                          IP: {s.ipAddress} | Last Active: {new Date(s.lastActiveAt).toLocaleString()}
-                        </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {sessions.length === 0 ? (
+                    <p className="table-empty-text">No active session logs found.</p>
+                  ) : (
+                    sessions.map((s) => (
+                      <div className="session-item" key={s._id}>
+                        <div className="session-item__details">
+                          <span className="session-item__device">
+                            {s.userAgent?.includes('Mobile') ? <Smartphone size={16} /> : <Laptop size={16} />}
+                            {s.userAgent}
+                            {s.isCurrent && <span className="session-item__current-badge">Current Session</span>}
+                          </span>
+                          <span className="session-item__meta">
+                            IP: {s.ipAddress || '127.0.0.1'} | Last Active: {new Date(s.lastActiveAt).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        {!s.isCurrent && (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => terminateSession.mutate(s._id)}
+                            title="Terminate Session"
+                          >
+                            <Trash2 size={14} /> Terminate
+                          </Button>
+                        )}
                       </div>
-                      {!s.isCurrent && (
-                        <button
-                          className="topbar__icon-btn touch-target text-danger"
-                          onClick={() => terminateSession.mutate(s._id)}
-                          title="Terminate Session"
-                        >
-                          <Trash2 size={16} style={{ color: 'var(--color-danger-500)' }} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </Card>
 
               {/* Change Password form */}
               <Card className="profile-card">
-                <h2><Shield size={18} /> Change Account Password</h2>
+                <h2><Lock size={18} /> Change Account Password</h2>
                 <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} noValidate>
+                  <div className="form-grid">
+                    <FormField label="Current Password *" required error={passwordForm.formState.errors.currentPassword?.message} className="form-field--full">
+                      <div className="login-password-wrapper">
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          className="form-input"
+                          placeholder="Enter your current password"
+                          {...passwordForm.register('currentPassword', { required: 'Current password is required.' })}
+                        />
+                        <button type="button" className="login-password-toggle" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                          {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </FormField>
 
-                  <FormField label="Current password" required error={passwordForm.formState.errors.currentPassword?.message}>
-                    <div className="login-password-wrapper">
-                      <input
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        className="form-input"
-                        {...passwordForm.register('currentPassword', { required: 'Current password is required.' })}
-                      />
-                      <button type="button" className="login-password-toggle" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
-                        {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
-                  </FormField>
+                    <FormField label="New Password *" required error={passwordForm.formState.errors.newPassword?.message}>
+                      <div className="login-password-wrapper">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          className="form-input"
+                          placeholder="Minimum 8 characters"
+                          {...passwordForm.register('newPassword', {
+                            required: 'New password is required.',
+                            minLength: { value: 8, message: 'New password must be at least 8 characters long.' },
+                            validate: (v) => {
+                              if (v === passwordForm.watch('currentPassword')) return 'New password cannot be the same as current password.';
+                              return true;
+                            }
+                          })}
+                        />
+                        <button type="button" className="login-password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
+                          {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </FormField>
 
-                  <FormField label="New password" required error={passwordForm.formState.errors.newPassword?.message}>
-                    <div className="login-password-wrapper">
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        className="form-input"
-                        {...passwordForm.register('newPassword', {
-                          required: 'New password is required.',
-                          minLength: { value: 8, message: 'New password must be at least 8 characters long.' },
-                          validate: (v) => {
-                            if (v === passwordForm.watch('currentPassword')) return 'New password cannot be the same as the current password.';
-                            return true;
-                          }
-                        })}
-                      />
-                      <button type="button" className="login-password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
-                        {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
-                  </FormField>
+                    <FormField label="Confirm New Password *" required error={passwordForm.formState.errors.confirmPassword?.message}>
+                      <div className="login-password-wrapper">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          className="form-input"
+                          placeholder="Re-enter new password"
+                          {...passwordForm.register('confirmPassword', {
+                            required: 'Confirm password is required.',
+                            validate: (v) => v === passwordForm.watch('newPassword') || 'New password and confirm password do not match.'
+                          })}
+                        />
+                        <button type="button" className="login-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </FormField>
+                  </div>
 
-                  <FormField label="Confirm new password" required error={passwordForm.formState.errors.confirmPassword?.message}>
-                    <div className="login-password-wrapper">
-                      <input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        className="form-input"
-                        {...passwordForm.register('confirmPassword', {
-                          required: 'Confirm password is required.',
-                          validate: (v) => v === passwordForm.watch('newPassword') || 'New password and confirm password do not match.'
-                        })}
-                      />
-                      <button type="button" className="login-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
-                  </FormField>
-
-                  <Button type="submit" isLoading={passwordForm.formState.isSubmitting}>
-                    Update Password
-                  </Button>
+                  <div className="form-actions-footer">
+                    <Button type="submit" isLoading={passwordForm.formState.isSubmitting}>
+                      Update Password
+                    </Button>
+                  </div>
                 </form>
               </Card>
             </div>

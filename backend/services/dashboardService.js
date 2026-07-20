@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Site = require('../models/Site');
 const User = require('../models/User');
 const Worker = require('../models/Worker');
+const Attendance = require('../models/Attendance');
 const Material = require('../models/Material');
 const WorkerPayment = require('../models/WorkerPayment');
 const Expense = require('../models/Expense');
@@ -243,40 +244,50 @@ async function getDashboard(queryParams, actor) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 7);
+
+  const attendanceSiteMatch = resolvedSiteId ? { site: new mongoose.Types.ObjectId(resolvedSiteId), ...isDeletedFilter } : { ...isDeletedFilter };
+
   const [
     totalSites,
     activeSites,
     siteAdmins,
     totalWorkers,
     totalMaterialCost,
-    totalWorkerPayments,
+    totalLabourExpense,
     totalOtherExpenses,
     monthlyMaterial,
-    monthlyPayments,
+    monthlyLabourExpense,
     monthlyExpenses,
     todayPurchases,
     monthlyPurchases,
-    pendingPayments,
     recentActivities,
     recentPurchases,
-    recentPayments,
     topSpendingSites,
     monthlyTrend,
     expenseBreakdown,
+    todayWorkersPresent,
+    todayLabourExpense,
+    weeklyLabourExpense,
+    recentAttendance,
+    recentExpenses,
   ] = await Promise.all([
     Site.countDocuments(isDeletedFilter),
     Site.countDocuments({ status: 'active', ...isDeletedFilter }),
     User.countDocuments({ role: 'site_admin', status: 'active', ...isDeletedFilter }),
-    Worker.countDocuments(workerMatch),
+    Attendance.countDocuments(attendanceSiteMatch),
     sumField(Material, materialMatch, 'totalAmount'),
-    sumField(WorkerPayment, { ...paymentMatch, status: 'paid' }, 'netSalary'),
+    sumField(Attendance, attendanceSiteMatch, 'totalAmount'),
     sumField(Expense, expenseMatch, 'amount'),
     sumField(Material, { ...materialMatch, date: { $gte: monthStart } }, 'totalAmount'),
-    sumField(WorkerPayment, { ...paymentMatch, status: 'paid', paidOn: { $gte: monthStart } }, 'netSalary'),
+    sumField(Attendance, { ...attendanceSiteMatch, date: { $gte: monthStart, $lte: todayEnd } }, 'totalAmount'),
     sumField(Expense, { ...expenseMatch, date: { $gte: monthStart } }, 'amount'),
     sumField(Material, { ...materialMatch, date: { $gte: todayStart } }, 'totalAmount'),
     sumField(Material, { ...materialMatch, date: { $gte: monthStart } }, 'totalAmount'),
-    WorkerPayment.countDocuments({ ...paymentMatch, status: 'pending' }),
     ActivityLog.find(
       resolvedSiteId ? { site: resolvedSiteId } : {},
     )
@@ -285,7 +296,6 @@ async function getDashboard(queryParams, actor) {
       .populate('actor', 'name')
       .populate('site', 'name'),
     Material.find(materialMatch).sort({ date: -1 }).limit(5).populate('site', 'name').populate('supplier', 'name'),
-    WorkerPayment.find({ ...paymentMatch, status: 'paid' }).sort({ paidOn: -1 }).limit(5).populate('worker', 'name').populate('site', 'name'),
     Material.aggregate([
       { $match: materialMatch },
       { $group: { _id: '$site', total: { $sum: '$totalAmount' } } },
@@ -295,12 +305,17 @@ async function getDashboard(queryParams, actor) {
       { $unwind: '$site' },
       { $project: { siteName: '$site.name', total: 1 } },
     ]),
-    buildMonthlyTrend({ resolvedSiteId, period, startDate, endDate, category, search, isDeletedFilter, materialMatch, paymentMatch, expenseMatch }),
-    buildExpenseBreakdown({ materialMatch, paymentMatch, expenseMatch }),
+    buildMonthlyTrend({ resolvedSiteId, period, startDate, endDate, category, search, isDeletedFilter, materialMatch, attendanceSiteMatch, expenseMatch }),
+    buildExpenseBreakdown({ materialMatch, attendanceSiteMatch, expenseMatch }),
+    Attendance.countDocuments({ ...attendanceSiteMatch, date: { $gte: todayStart, $lte: todayEnd }, status: { $in: ['present', 'halfDay'] } }),
+    sumField(Attendance, { ...attendanceSiteMatch, date: { $gte: todayStart, $lte: todayEnd } }, 'totalAmount'),
+    sumField(Attendance, { ...attendanceSiteMatch, date: { $gte: weekStart, $lte: todayEnd } }, 'totalAmount'),
+    Attendance.find(attendanceSiteMatch).sort({ date: -1, createdAt: -1 }).limit(5).populate('site', 'name').populate('profession', 'name'),
+    Expense.find(expenseMatch).sort({ date: -1 }).limit(5).populate('site', 'name').populate('category', 'name'),
   ]);
 
-  const totalExpensesSum = totalMaterialCost + totalWorkerPayments + totalOtherExpenses;
-  const monthlyExpensesSum = monthlyMaterial + monthlyPayments + monthlyExpenses;
+  const totalExpensesSum = totalMaterialCost + totalLabourExpense + totalOtherExpenses;
+  const monthlyExpensesSum = monthlyMaterial + monthlyLabourExpense + monthlyExpenses;
 
   if (userRole === 'super_admin') {
     return {
@@ -309,8 +324,12 @@ async function getDashboard(queryParams, actor) {
         activeSites,
         siteAdmins,
         totalWorkers,
+        todayWorkersPresent,
+        todayLabourExpense,
+        weeklyLabourExpense,
+        monthlyLabourExpense,
         totalMaterialCost,
-        totalWorkerPayments,
+        totalWorkerPayments: totalLabourExpense,
         totalOtherExpenses,
         totalExpenses: totalExpensesSum,
         monthlyExpenses: monthlyExpensesSum,
@@ -323,7 +342,8 @@ async function getDashboard(queryParams, actor) {
       recent: {
         activities: recentActivities,
         purchases: recentPurchases,
-        payments: recentPayments,
+        attendance: recentAttendance,
+        expenses: recentExpenses,
         topSpendingSites,
       },
     };
@@ -334,10 +354,14 @@ async function getDashboard(queryParams, actor) {
       todayPurchases,
       monthlyPurchases,
       totalWorkers,
-      workerPayments: totalWorkerPayments,
+      todayWorkersPresent,
+      todayLabourExpense,
+      weeklyLabourExpense,
+      monthlyLabourExpense,
+      workerPayments: totalLabourExpense,
       otherExpenses: totalOtherExpenses,
-      pendingPayments,
-      totalExpenses: totalWorkerPayments + totalOtherExpenses + monthlyPurchases,
+      pendingPayments: 0,
+      totalExpenses: totalLabourExpense + totalOtherExpenses + monthlyPurchases,
     },
     charts: {
       monthlyTrend,
@@ -345,36 +369,35 @@ async function getDashboard(queryParams, actor) {
     },
     recent: {
       activities: recentActivities,
+      attendance: recentAttendance,
+      expenses: recentExpenses,
     },
   };
 }
 
-async function buildMonthlyTrend({ resolvedSiteId, period, startDate, endDate, category, search, isDeletedFilter, materialMatch, paymentMatch, expenseMatch }) {
+async function buildMonthlyTrend({ resolvedSiteId, period, startDate, endDate, category, search, isDeletedFilter, materialMatch, attendanceSiteMatch, expenseMatch }) {
   const trendDateMatch = getDateRangeFilter(period, startDate, endDate, 'date');
   const dateField = period === 'today' || period === 'yesterday' || period === 'week' ? '%Y-%m-%d' : '%Y-%m';
 
   const materialTrendMatch = { ...materialMatch };
   const expenseTrendMatch = { ...expenseMatch };
-  const paymentTrendMatch = { ...paymentMatch, status: 'paid' };
+  const attendanceTrendMatch = { ...attendanceSiteMatch };
 
   if (trendDateMatch.date) {
     materialTrendMatch.date = trendDateMatch.date;
     expenseTrendMatch.date = trendDateMatch.date;
+    attendanceTrendMatch.date = trendDateMatch.date;
   }
 
-  if (trendDateMatch.paidOn) {
-    paymentTrendMatch.paidOn = trendDateMatch.paidOn;
-  }
-
-  const [materials, payments, expenses] = await Promise.all([
+  const [materials, labour, expenses] = await Promise.all([
     Material.aggregate([
       { $match: materialTrendMatch },
       { $group: { _id: { $dateToString: { format: dateField, date: '$date' } }, materials: { $sum: '$totalAmount' } } },
       { $sort: { _id: 1 } },
     ]),
-    WorkerPayment.aggregate([
-      { $match: paymentTrendMatch },
-      { $group: { _id: { $dateToString: { format: dateField, date: '$paidOn' } }, payments: { $sum: '$netSalary' } } },
+    Attendance.aggregate([
+      { $match: attendanceTrendMatch },
+      { $group: { _id: { $dateToString: { format: dateField, date: '$date' } }, labour: { $sum: '$totalAmount' } } },
       { $sort: { _id: 1 } },
     ]),
     Expense.aggregate([
@@ -386,34 +409,35 @@ async function buildMonthlyTrend({ resolvedSiteId, period, startDate, endDate, c
 
   const months = new Set([
     ...materials.map((item) => item._id),
-    ...payments.map((item) => item._id),
+    ...labour.map((item) => item._id),
     ...expenses.map((item) => item._id),
   ]);
 
   return [...months].sort().map((month) => ({
     month,
     materials: materials.find((item) => item._id === month)?.materials ?? 0,
-    payments: payments.find((item) => item._id === month)?.payments ?? 0,
+    labour: labour.find((item) => item._id === month)?.labour ?? 0,
+    payments: labour.find((item) => item._id === month)?.labour ?? 0,
     expenses: expenses.find((item) => item._id === month)?.expenses ?? 0,
   }));
 }
 
-async function buildExpenseBreakdown({ materialMatch, paymentMatch, expenseMatch }) {
-  const [materials, payments, expenses] = await Promise.all([
+async function buildExpenseBreakdown({ materialMatch, attendanceSiteMatch, expenseMatch }) {
+  const [materials, labour, expenses] = await Promise.all([
     Material.aggregate([{ $match: materialMatch }, { $group: { _id: 'Materials', total: { $sum: '$totalAmount' } } }]),
-    WorkerPayment.aggregate([{ $match: { ...paymentMatch, status: 'paid' } }, { $group: { _id: 'Worker Payments', total: { $sum: '$netSalary' } } }]),
+    Attendance.aggregate([{ $match: attendanceSiteMatch }, { $group: { _id: 'Labour Attendance', total: { $sum: '$totalAmount' } } }]),
     Expense.aggregate([
       { $match: expenseMatch },
       { $lookup: { from: 'expensecategories', localField: 'category', foreignField: '_id', as: 'cat' } },
       { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
-      { $group: { _id: '$cat.name', total: { $sum: '$amount' } } },
+      { $group: { _id: { $ifNull: ['$cat.name', 'Other Overheads'] }, total: { $sum: '$amount' } } },
       { $sort: { total: -1 } },
     ]),
   ]);
 
   const breakdown = [];
   if (materials[0]) breakdown.push({ name: materials[0]._id, value: materials[0].total });
-  if (payments[0]) breakdown.push({ name: payments[0]._id, value: payments[0].total });
+  if (labour[0]) breakdown.push({ name: labour[0]._id, value: labour[0].total });
   expenses.forEach((item) => {
     if (item._id) {
       breakdown.push({ name: item._id, value: item.total });

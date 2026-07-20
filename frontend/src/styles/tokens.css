@@ -42,9 +42,16 @@
   --color-text-primary: var(--color-steel-900);
   --color-text-secondary: var(--color-steel-500);
   --color-text-inverse: #ffffff;
-  --color-sidebar-bg: #1A1D29; /* dark navy/charcoal */
-  --color-sidebar-text: #9AA2B2; /* muted gray text */
-  --color-sidebar-active: var(--color-primary-500);
+  /* ---- Sidebar Tokens (Light Mode Defaults) ---- */
+  --color-sidebar-bg: #ffffff;
+  --color-sidebar-text: var(--color-steel-600);
+  --color-sidebar-text-hover: var(--color-steel-900);
+  --color-sidebar-text-active: var(--color-primary-600);
+  --color-sidebar-border: var(--color-steel-200);
+  --color-sidebar-group-label: var(--color-steel-400);
+  --color-sidebar-hover-bg: var(--color-steel-100);
+  --color-sidebar-active-bg: var(--color-primary-50);
+  --color-sidebar-active-border: var(--color-primary-500);
 
   /* ---- Spacing scale ---- */
   --space-3xs: 0.125rem;
@@ -113,8 +120,15 @@
   --color-border: var(--color-steel-700);
   --color-text-primary: var(--color-steel-50);
   --color-text-secondary: var(--color-steel-400);
-  --color-sidebar-bg: #0b1220;
+  --color-sidebar-bg: #0f172a;
   --color-sidebar-text: var(--color-steel-400);
+  --color-sidebar-text-hover: #ffffff;
+  --color-sidebar-text-active: #ffffff;
+  --color-sidebar-border: var(--color-steel-800);
+  --color-sidebar-group-label: var(--color-steel-500);
+  --color-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --color-sidebar-active-bg: rgba(30, 111, 255, 0.15);
+  --color-sidebar-active-border: var(--color-primary-500);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);

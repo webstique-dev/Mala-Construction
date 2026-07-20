@@ -194,7 +194,7 @@ export default function SiteAdmins() {
       </div>
 
       {newAdminCreds && (
-        <Card style={{ backgroundColor: 'var(--color-primary-50)', border: '1px solid var(--color-primary-300)', padding: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+        <Card style={{ border: '1px solid var(--color-primary-300)', padding: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
           <h4 style={{ color: 'var(--color-primary-800)', marginBottom: 6 }}>Supervisor Profile Generated!</h4>
           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-primary-700)' }}>
             Credential packet for <strong>{newAdminCreds.name}</strong>. Share these details to allow login:

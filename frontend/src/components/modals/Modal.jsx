@@ -7,16 +7,21 @@ import './Modal.css';
 export default function Modal({ isOpen, onClose, title, children, footer, size = 'md' }) {
   const dialogRef = useRef(null);
 
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   // Escape-to-close + basic focus trap entry point (focuses the dialog on open).
   useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     document.addEventListener('keydown', handleKeyDown);
     dialogRef.current?.focus();
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (typeof document === 'undefined') return null;
 

@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, ArrowRight, Building2, CheckCircle2, Circle, Eye, EyeOff, LoaderCircle, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, LoaderCircle, ShieldCheck, Building2, CheckCircle2, Circle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import '../../styles/tokens.css';
@@ -140,7 +140,7 @@ export default function Login() {
         <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} noValidate className="login-form">
           <div className="login-field-group">
             <label className="login-label" htmlFor="login-email">Email</label>
-            <input id="login-email" type="email" autoComplete="email" placeholder="Enter your work email" className="login-input" {...loginForm.register('email', { required: 'Email is required', validate: (value) => isEmail(value) || 'Invalid email' })} />
+            <input id="login-email" type="email" autoComplete="email" placeholder="Enter your email" className="login-input" {...loginForm.register('email', { required: 'Email is required', validate: (value) => isEmail(value) || 'Invalid email' })} />
             {loginForm.formState.errors.email && <span className="login-field-error">{loginForm.formState.errors.email.message}</span>}
           </div>
           <div className="login-field-group">
@@ -158,10 +158,9 @@ export default function Login() {
               <input type="checkbox" {...loginForm.register('rememberMe')} />
               <span>Remember me</span>
             </label>
-            {/* <a href="/forgot-password" className="login-forgot-link">Forgot password?</a> */}
           </div>
           <button type="submit" className="login-button" disabled={isLoggingIn || loginForm.formState.isSubmitting}>
-            {isLoggingIn || loginForm.formState.isSubmitting ? (<span className="login-button__content"><LoaderCircle size={16} className="login-spinner" />Signing In...</span>) : 'Sign in'}
+            {isLoggingIn || loginForm.formState.isSubmitting ? (<span className="login-button__content"><LoaderCircle size={16} className="login-spinner" />Signing In...</span>) : 'Sign In'}
           </button>
         </form>
       </motion.div>
@@ -251,32 +250,42 @@ export default function Login() {
 
   return (
     <div className="login-container">
-      <div className="login-left">
-        <div className="login-left__overlay">
-          <div className="login-left__header">
-            <div className="login-left__logo">
-              <span className="login-left__logo-text">MALA CONSTRUCTION</span>
+      <div className="login-main-box">
+        {/* Left Image Panel */}
+        <div className="login-left">
+          <div className="login-left__card">
+            <div className="login-left__overlay">
+              <div className="login-left__tagline">
+                <span>A WISE QUOTE</span>
+                <div className="login-left__line" />
+              </div>
+              <div className="login-left__content">
+                <h2 className="login-left__headline">Coordinate projects with clarity and confidence.</h2>
+                <p className="login-left__subtext">
+                  Monitor operations, manage teams, and keep your construction business moving forward seamlessly.
+                </p>
+              </div>
             </div>
           </div>
-          <div className="login-left__content">
-            <div className="login-left__badge"><Sparkles size={14} /> Secure authentication</div>
-            <h2 className="login-left__headline">Coordinate projects with clarity and confidence.</h2>
-            <p className="login-left__subtext">Monitor operations, manage teams, and keep your construction business moving.</p>
-          </div>
         </div>
-      </div>
-      <div className="login-right">
-        <div className="login-card">
-          <div className="login-tabs" role="tablist" aria-label="Authentication tabs">
-            <button type="button" className={`login-tab ${activeTab === 'login' ? 'login-tab--active' : ''}`} onClick={() => setActiveTab('login')} role="tab" aria-selected={activeTab === 'login'}>Login</button>
-            {/* <button type="button" className={`login-tab ${activeTab === 'register' ? 'login-tab--active' : ''}`} onClick={() => setActiveTab('register')} role="tab" aria-selected={activeTab === 'register'}>Create Account</button> */}
+
+        {/* Right Form Panel */}
+        <div className="login-right">
+          <div className="login-right__inner">
+            <div className="login-logo-container">
+              <img
+                src="https://res.cloudinary.com/rlokioxu/image/upload/v1784539749/Mala_Construction_logo_oyced2.png"
+                alt="Mala Constructions"
+                className="login-logo-img"
+              />
+            </div>
+            <div className="login-card__header">
+              <h1 className="login-card__title">Welcome Back</h1>
+              <p className="login-card__subtitle">Enter your email and password to access your account</p>
+            </div>
+            {serverError && <div className="login-card__error" role="alert"><AlertCircle size={16} /><span>{serverError}</span></div>}
+            <AnimatePresence mode="wait">{tabContent[activeTab]}</AnimatePresence>
           </div>
-          <div className="login-card__header">
-            <h1 className="login-card__title">{activeTab === 'login' ? 'Welcome back' : 'Create your workspace'}</h1>
-            <p className="login-card__subtitle">{activeTab === 'login' ? 'Sign in to access your dashboard.' : 'Set up a secure account and choose the right access level.'}</p>
-          </div>
-          {serverError && <div className="login-card__error" role="alert"><AlertCircle size={16} /><span>{serverError}</span></div>}
-          <AnimatePresence mode="wait">{tabContent[activeTab]}</AnimatePresence>
         </div>
       </div>
     </div>

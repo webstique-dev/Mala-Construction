@@ -105,7 +105,7 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
           </FormField>
           <FormField label="Status"><select className="form-select" {...register('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></FormField>
           <FormField label="Address" className="form-field--full"><input className="form-input" {...register('address', { setValueAs: v => (typeof v === 'string' ? v.trim() : v) })} /></FormField>
-          <FormField label="Emergency contact"><input className="form-input" {...register('emergencyContactName')} /></FormField>
+          {/* <FormField label="Emergency contact"><input className="form-input" {...register('emergencyContactName')} /></FormField> */}
           <FormField label="Emergency phone">
             <Controller control={control} name="emergencyContactPhone" rules={{ validate: (v) => !v || validatePhone(v) || 'Invalid phone number' }} render={({ field }) => <PhoneField value={field.value} onChange={field.onChange} />} />
           </FormField>

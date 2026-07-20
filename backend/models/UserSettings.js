@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSettingsSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
-    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'light' },
     language: { type: String, default: 'en' },
     timezone: { type: String, default: 'Asia/Kolkata' },
     dateFormat: { type: String, default: 'YYYY-MM-DD' },

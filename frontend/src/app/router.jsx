@@ -8,6 +8,7 @@ import SiteAdmins from '../pages/siteAdmins/SiteAdmins';
 import Materials from '../pages/materials/Materials';
 import Workers from '../pages/workers/Workers';
 import WorkerProfile from '../pages/workers/WorkerProfile';
+import Attendance from '../pages/attendance/Attendance';
 import Payments from '../pages/payments/Payments';
 import Expenses from '../pages/expenses/Expenses';
 import Reports from '../pages/reports/Reports';
@@ -15,14 +16,14 @@ import ActivityLogs from '../pages/activityLogs/ActivityLogs';
 import Notifications from '../pages/notifications/Notifications';
 import Settings from '../pages/settings/Settings';
 import Profile from '../pages/settings/Profile';
-import Unauthorized from '../pages/errors/Unauthorized';
+// import Unauthorized from '../pages/errors/Unauthorized';
 import NotFound from '../pages/errors/NotFound';
 import { ROLES } from '../constants';
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/dashboard" replace /> },
   { path: '/login', element: <Login /> },
-  { path: '/unauthorized', element: <Unauthorized /> },
+  // { path: '/unauthorized', element: <Unauthorized /> },
 
   {
     element: <ProtectedRoute />,
@@ -32,8 +33,8 @@ export const router = createBrowserRouter([
         children: [
           { path: '/dashboard', element: <Dashboard /> },
           { path: '/materials', element: <Materials /> },
-          { path: '/workers', element: <Workers /> },
-          { path: '/workers/:id', element: <WorkerProfile /> },
+          { path: '/workers', element: <Navigate to="/attendance" replace /> },
+          { path: '/attendance', element: <Attendance /> },
           { path: '/payments', element: <Payments /> },
           { path: '/expenses', element: <Expenses /> },
           { path: '/reports', element: <Reports /> },

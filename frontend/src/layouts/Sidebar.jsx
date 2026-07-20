@@ -45,10 +45,21 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       {/* Desktop rail - collapses width, no overlay */}
       <aside className={`sidebar${isCollapsed ? ' sidebar--collapsed' : ''}`}>
         <div className="sidebar__header">
-          {!isCollapsed && (
+          {isCollapsed ? (
+            <div className="sidebar__brand sidebar__brand--collapsed">
+              <img
+                src="https://res.cloudinary.com/rlokioxu/image/upload/v1784539749/mala_favicon_zzxouc.png"
+                alt="Mala Constructions"
+                className="sidebar__logo-icon"
+              />
+            </div>
+          ) : (
             <div className="sidebar__brand">
-              {/* <div className="sidebar__brand-mark" aria-hidden="true" /> */}
-              <h6 className='text-bold'>MALA <br /> CONSTRUCTIONS</h6>
+              <img
+                src="https://res.cloudinary.com/rlokioxu/image/upload/v1784539749/Mala_Construction_logo_oyced2.png"
+                alt="Mala Constructions"
+                className="sidebar__logo-img"
+              />
             </div>
           )}
           <button
@@ -107,7 +118,13 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             >
               <div className="sidebar__header">
-                <span className="sidebar__brand">MALA CONSTR.</span>
+                <div className="sidebar__brand">
+                  <img
+                    src="https://res.cloudinary.com/rlokioxu/image/upload/v1784539749/Mala_Construction_logo_oyced2.png"
+                    alt="Mala Constructions"
+                    className="sidebar__logo-img"
+                  />
+                </div>
                 <button type="button" className="sidebar__collapse-btn touch-target" onClick={onClose} aria-label="Close menu">
                   <X size={20} />
                 </button>

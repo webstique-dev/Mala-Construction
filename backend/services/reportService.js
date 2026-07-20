@@ -3,6 +3,8 @@ const ExcelJS = require('exceljs');
 const mongoose = require('mongoose');
 const Material = require('../models/Material');
 const Worker = require('../models/Worker');
+const Attendance = require('../models/Attendance');
+const Profession = require('../models/Profession');
 const WorkerPayment = require('../models/WorkerPayment');
 const Expense = require('../models/Expense');
 const MaterialCategory = require('../models/MaterialCategory');
@@ -220,6 +222,36 @@ async function fetchReportData(queryParams, actor) {
       .sort({ date: -1 });
   }
 
+  // 4. Query Attendance
+  let includeAttendance = true;
+  if (type === 'material' || type === 'expense' || category || supplierId || expenseVendorQuery) {
+    includeAttendance = false;
+  }
+  if (type === 'worker' || type === 'attendance' || type === 'payment') {
+    includeAttendance = true;
+  }
+
+  let attendances = [];
+  if (includeAttendance) {
+    const attendanceQuery = {
+      ...siteFilter,
+      ...isDeletedFilter,
+      date: { $gte: start, $lte: end },
+    };
+    if (professionId) attendanceQuery.profession = professionId;
+    if (workerId) attendanceQuery.worker = workerId;
+    if (search) {
+      attendanceQuery.$or = [
+        { workerName: new RegExp(search, 'i') },
+        { remarks: new RegExp(search, 'i') },
+      ];
+    }
+    attendances = await Attendance.find(attendanceQuery)
+      .populate('site', 'name')
+      .populate('profession', 'name')
+      .sort({ date: -1 });
+  }
+
   // Format and consolidate data rows
   data.rows.push(...materials.map((m) => ({
     _id: m._id,
@@ -260,11 +292,25 @@ async function fetchReportData(queryParams, actor) {
     status: e.status || 'pending'
   })));
 
+  data.rows.push(...attendances.map((a) => ({
+    _id: a._id,
+    type: 'Labour Attendance',
+    date: a.date,
+    site: a.site?.name || 'Unknown',
+    description: `${a.workerName || a.worker?.name || 'Unnamed Worker'} (${a.profession?.name || 'Labour'}) [${a.inTime} - ${a.outTime}, ${a.workingHours}h]`,
+    category: a.profession?.name || 'Labour',
+    vendor: '—',
+    paymentMethod: 'cash',
+    amount: a.totalAmount || a.dailyLabourCost || 0,
+    status: a.status === 'halfDay' ? 'Half Day' : 'Full Day'
+  })));
+
   // Calculate summaries matching filtered data ONLY
   data.summary.materialTotal = materials.reduce((s, m) => s + (m.totalAmount || 0), 0);
   data.summary.paymentTotal = payments.reduce((s, p) => s + (p.netSalary || 0), 0);
   data.summary.expenseTotal = expenses.reduce((s, e) => s + (e.amount || 0), 0);
-  data.summary.grandTotal = data.summary.materialTotal + data.summary.paymentTotal + data.summary.expenseTotal;
+  data.summary.attendanceTotal = attendances.reduce((s, a) => s + (a.totalAmount || a.dailyLabourCost || 0), 0);
+  data.summary.grandTotal = data.summary.materialTotal + data.summary.paymentTotal + data.summary.expenseTotal + data.summary.attendanceTotal;
 
   // Sorting
   if (sortBy) {

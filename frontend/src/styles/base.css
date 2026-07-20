@@ -77,15 +77,6 @@ img {
 }
 
 /* Minimum touch target on mobile - buttons/links that don't already meet 44px get this. */
-@media (max-width: 780px) {
-  .touch-target {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -106,7 +97,7 @@ img {
   background: var(--color-surface);
   border-radius: var(--radius-card);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-  padding: 20px;
+  padding: var(--space-md);
 }
 
 /* Card header accent */
@@ -185,13 +176,13 @@ img {
 }
 
 /* Responsive visibility helper classes */
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .mobile-only {
     display: none !important;
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .desktop-only {
     display: none !important;
   }

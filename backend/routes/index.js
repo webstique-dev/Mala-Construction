@@ -8,6 +8,7 @@ router.use('/lookups', require('./lookup.routes'));
 router.use('/sites', require('./site.routes'));
 router.use('/materials', require('./material.routes'));
 router.use('/workers', require('./worker.routes'));
+router.use('/attendance', require('./attendance.routes'));
 router.use('/payments', require('./workerPayment.routes'));
 router.use('/expenses', require('./expense.routes'));
 router.use('/dashboard', require('./dashboard.routes'));

@@ -13,6 +13,7 @@ import { useLookups } from '../../hooks/useLookups';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import { ImageThumbnail } from '../../components/common/ImagePreviewModal';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
 
@@ -178,7 +179,7 @@ export default function Materials() {
                       <th>Qty / Volume</th>
                       <th>Invoice Cost</th>
                       <th>Date logged</th>
-                      <th>Receipt</th>
+                      <th>Image</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
@@ -200,11 +201,11 @@ export default function Materials() {
                         <td className="worker-payments-card__amount">{formatCurrency(r.totalAmount)}</td>
                         <td>{formatDate(r.date)}</td>
                         <td>
-                          {r.invoiceUpload?.url ? (
-                            <a href={r.invoiceUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target">
-                              <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> view
-                            </a>
-                          ) : '—'}
+                          <ImageThumbnail
+                            imageUrl={r.invoiceUpload?.url}
+                            title={`Material Image - ${r.materialName} (${r.invoiceNumber})`}
+                            label="View"
+                          />
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div className="module-page__row-actions">

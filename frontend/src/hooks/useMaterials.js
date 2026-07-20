@@ -17,6 +17,7 @@ export function useCreateMaterial() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.MATERIALS] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -28,6 +29,7 @@ export function useUpdateMaterial() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.MATERIALS] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -39,6 +41,7 @@ export function useDeleteMaterial() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.MATERIALS] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -50,6 +53,7 @@ export function useRestoreMaterial() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.MATERIALS] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }

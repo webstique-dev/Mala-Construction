@@ -17,6 +17,7 @@ export function useCreateExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.EXPENSES] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -28,6 +29,7 @@ export function useUpdateExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.EXPENSES] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -39,6 +41,7 @@ export function useDeleteExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.EXPENSES] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -50,6 +53,7 @@ export function useRestoreExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.EXPENSES] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -61,6 +65,7 @@ export function useApproveExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.EXPENSES] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }
@@ -72,6 +77,7 @@ export function useRejectExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.EXPENSES] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEYS.REPORTS] });
     },
   });
 }

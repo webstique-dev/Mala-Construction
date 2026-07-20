@@ -3,11 +3,27 @@ const mongoose = require('mongoose');
 const attendanceSchema = new mongoose.Schema(
   {
     site: { type: mongoose.Schema.Types.ObjectId, ref: 'Site', required: true, index: true },
-    worker: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', required: true },
-    date: { type: Date, required: true },
-    status: { type: String, enum: ['present', 'halfDay', 'absent'], required: true },
+    date: { type: Date, required: true, index: true },
+    contractor: { type: String, trim: true, default: 'Direct / In-House', index: true },
+    profession: { type: mongoose.Schema.Types.ObjectId, ref: 'Profession', required: true, index: true },
+    professionName: { type: String, trim: true, default: '' },
+    workerName: { type: String, trim: true, default: '' },
+    mobileNumber: { type: String, trim: true, default: '' },
+    gender: { type: String, enum: ['male', 'female', 'other', 'unspecified'], default: 'unspecified' },
+    inTime: { type: String, trim: true, default: '09:00' },
+    outTime: { type: String, trim: true, default: '18:00' },
+    workingHours: { type: Number, default: 8, min: 0 },
+    status: { type: String, enum: ['present', 'halfDay', 'fullDay'], default: 'present', index: true },
+    dailyWage: { type: Number, required: true, min: 0, default: 0 },
     overtimeHours: { type: Number, default: 0, min: 0 },
-    notes: { type: String, trim: true, maxlength: 500 },
+    overtimeAmount: { type: Number, default: 0, min: 0 },
+    totalAmount: { type: Number, required: true, min: 0, default: 0 },
+    dailyLabourCost: { type: Number, required: true, min: 0, default: 0 }, // Aliased to totalAmount
+    remarks: { type: String, trim: true, maxlength: 500 },
+    attachment: {
+      url: { type: String, default: null },
+      publicId: { type: String, default: null },
+    },
     markedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
@@ -16,8 +32,9 @@ const attendanceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// One attendance record per worker per day - prevents accidental double-marking.
-attendanceSchema.index({ worker: 1, date: 1 }, { unique: true });
 attendanceSchema.index({ site: 1, date: -1 });
+attendanceSchema.index({ site: 1, contractor: 1, date: -1 });
+attendanceSchema.index({ site: 1, profession: 1, date: -1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);
+

@@ -8,6 +8,17 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Intercept request to ensure FormData uploads dynamically set multipart boundary
+apiClient.interceptors.request.use(
+  (config) => {
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // --- Auto refresh-on-401 ---
 // Queues concurrent requests that fail while a refresh is already in flight,
 // so we don't fire multiple parallel refresh calls.

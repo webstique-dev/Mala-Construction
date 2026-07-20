@@ -13,6 +13,7 @@ import { useLookups } from '../../hooks/useLookups';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import { ImageThumbnail } from '../../components/common/ImagePreviewModal';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
 
@@ -211,11 +212,11 @@ export default function Expenses() {
                         <td>{formatDate(r.date)}</td>
                         <td style={{ textTransform: 'capitalize' }}>{r.paymentMethod}</td>
                         <td>
-                          {r.receiptUpload?.url ? (
-                            <a href={r.receiptUpload.url} target="_blank" rel="noreferrer" className="site-card__btn touch-target">
-                              <Receipt size={14} style={{ color: 'var(--color-primary-500)' }} /> receipt
-                            </a>
-                          ) : '—'}
+                          <ImageThumbnail
+                            imageUrl={r.receiptUpload?.url}
+                            title={`Receipt - ${r.title}`}
+                            label="Receipt"
+                          />
                         </td>
                         <td>
                           <span className={`status-badge status-badge--${r.status === 'approved' ? 'active' : r.status === 'rejected' ? 'suspended' : 'pending'}`}>

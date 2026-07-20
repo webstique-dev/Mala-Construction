@@ -201,7 +201,7 @@ export default function Topbar({ onOpenSidebar }) {
         <div className="topbar__user">
           <div className="topbar__avatar">
             {user?.photo?.url ? (
-              <img src={user.photo.url} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover' }} />
+              <img src={user.photo.url} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: `50%`, objectFit: 'cover' }} />
             ) : (
               user?.name?.split(' ').map((n) => n[0]).slice(0, 2).join('')
             )}

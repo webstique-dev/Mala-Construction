@@ -4,12 +4,9 @@ const ThemeContext = createContext(null);
 const STORAGE_KEY = 'mala_erp_theme';
 
 function getInitialTheme() {
-  // NOTE: Artifacts environments can't use localStorage - this app runs standalone
-  // (Vite dev server / real deployment), where localStorage is available and appropriate.
   const stored = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null;
   if (stored === 'light' || stored === 'dark') return stored;
-  const prefersDark = typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  return prefersDark ? 'dark' : 'light';
+  return 'light';
 }
 
 export function ThemeProvider({ children }) {
