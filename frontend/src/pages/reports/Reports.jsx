@@ -19,15 +19,15 @@ import Drawer from '../../components/drawers/Drawer';
 import './Reports.css';
 
 const REPORT_TYPES = [
-  { value: 'monthly', label: 'Monthly Financial Statement' },
   { value: 'daily', label: 'Daily Activity Logs' },
+  { value: 'monthly', label: 'Monthly Financial Statement' },
+  { value: 'site', label: 'Project Site Report' },
+  { value: 'expense', label: 'Total Company Expenses' },
+  { value: 'payment', label: 'Worker Payment Report' },
   { value: 'weekly', label: 'Weekly Summary Statement' },
   { value: 'yearly', label: 'Yearly Financial Ledger' },
-  { value: 'site', label: 'Project Site Report' },
   { value: 'material', label: 'Material Logistics Report' },
   { value: 'worker', label: 'Worker Attendance Registry' },
-  { value: 'payment', label: 'Worker Wages Ledger' },
-  { value: 'expense', label: 'Overheads & Expenses Report' },
   { value: 'category', label: 'Category Expenditure Breakdown' },
   { value: 'vendor', label: 'Supplier & Vendor Accounts' },
   { value: 'custom', label: 'Custom Period Breakdown' },
@@ -267,6 +267,7 @@ export default function Reports() {
   };
 
   const clearAllFilters = () => {
+    setType('monthly');
     setSiteFilter('');
     setStartDate('');
     setEndDate('');
@@ -278,7 +279,10 @@ export default function Reports() {
     setProfessionFilter('');
     setSearchFilter('');
     setShowDeleted(false);
-    toast.success('Filters cleared.');
+    setSortBy('date');
+    setSortOrder('desc');
+    setPage(1);
+    toast.success('All filters reset to defaults.');
   };
 
   return (
@@ -414,7 +418,7 @@ export default function Reports() {
               />
             </div> */}
 
-            <div className="reports-page__field">
+            {/* <div className="reports-page__field">
               <label>Status Filter</label>
               <Select
                 styles={reactSelectStyles}
@@ -424,7 +428,7 @@ export default function Reports() {
                 isClearable
                 placeholder="All Statuses"
               />
-            </div>
+            </div> */}
 
             <div className="reports-page__field">
               <label htmlFor="rep-type">Report Structure</label>
@@ -433,7 +437,7 @@ export default function Reports() {
               </select>
             </div>
 
-            <div className="reports-page__field">
+            {/* <div className="reports-page__field">
               <label>Payment Method</label>
               <Select
                 styles={reactSelectStyles}
@@ -443,7 +447,7 @@ export default function Reports() {
                 isClearable
                 placeholder="All Methods"
               />
-            </div>
+            </div> */}
 
             {/* <div className="reports-page__field">
               <label>Supplier / Vendor</label>
@@ -617,7 +621,7 @@ export default function Reports() {
             </div>
           )}
 
-          <div className="reports-page__field">
+          {/* <div className="reports-page__field">
             <label>Category Filter</label>
             <Select
               styles={reactSelectStyles}
@@ -627,9 +631,9 @@ export default function Reports() {
               isClearable
               placeholder="All Categories"
             />
-          </div>
+          </div> */}
 
-          <div className="reports-page__field">
+          {/* <div className="reports-page__field">
             <label>Status Filter</label>
             <Select
               styles={reactSelectStyles}
@@ -639,7 +643,7 @@ export default function Reports() {
               isClearable
               placeholder="All Statuses"
             />
-          </div>
+          </div> */}
 
           <div className="reports-page__field">
             <label htmlFor="rep-type-drawer">Report Structure</label>
@@ -648,7 +652,7 @@ export default function Reports() {
             </select>
           </div>
 
-          <div className="reports-page__field">
+          {/* <div className="reports-page__field">
             <label>Payment Method</label>
             <Select
               styles={reactSelectStyles}
@@ -658,7 +662,7 @@ export default function Reports() {
               isClearable
               placeholder="All Methods"
             />
-          </div>
+          </div> */}
 
           {/* <div className="reports-page__field">
             <label>Supplier / Vendor</label>

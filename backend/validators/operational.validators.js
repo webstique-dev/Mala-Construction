@@ -126,23 +126,27 @@ const searchQuerySchema = z.object({
   showDeleted: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional().default(false),
 });
 
+const emptyToUndefined = (val) => (val === '' || val === null ? undefined : val);
+const optionalObjectId = z.preprocess(emptyToUndefined, objectId.optional());
+const optionalString = z.preprocess(emptyToUndefined, z.string().trim().optional());
+
 const reportQuerySchema = z.object({
   type: z.enum([
     'daily', 'weekly', 'monthly', 'yearly', 'site', 'material',
     'worker', 'payment', 'expense', 'category', 'vendor', 'custom',
   ]),
   format: z.enum(['pdf', 'excel', 'csv', 'json']).optional().default('pdf'),
-  siteId: objectId.optional(),
+  siteId: optionalObjectId,
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
-  category: objectId.optional(),
-  status: z.string().trim().optional(),
-  paymentMethod: z.string().trim().optional(),
-  vendor: z.string().trim().optional(),
-  workerId: objectId.optional(),
-  professionId: objectId.optional(),
-  search: z.string().trim().optional(),
-  sortBy: z.string().trim().optional(),
+  category: optionalObjectId,
+  status: optionalString,
+  paymentMethod: optionalString,
+  vendor: optionalString,
+  workerId: optionalObjectId,
+  professionId: optionalObjectId,
+  search: optionalString,
+  sortBy: optionalString,
   sortOrder: z.enum(['asc', 'desc']).optional(),
   showDeleted: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional().default(false),
 });

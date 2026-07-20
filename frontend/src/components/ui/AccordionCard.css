@@ -77,7 +77,7 @@
 .accordion-card__category {
   font-weight: var(--font-weight-medium);
   background-color: var(--color-steel-100);
-  padding: 2px 6px;
+  /* padding: 2px 6px; */
   border-radius: var(--radius-xs);
 }
 

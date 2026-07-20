@@ -14,20 +14,54 @@ const ApiError = require('../utils/ApiError');
 
 function getDateRange(type, startDate, endDate) {
   const now = new Date();
-  const start = startDate ? new Date(startDate) : new Date(now);
-  const end = endDate ? new Date(endDate) : new Date(now);
-  end.setHours(23, 59, 59, 999);
+  let start = startDate ? new Date(startDate) : null;
+  let end = endDate ? new Date(endDate) : null;
 
-  if (!startDate && !endDate) {
-    start.setHours(0, 0, 0, 0);
-    if (type === 'daily') return { start, end: now };
-    if (type === 'weekly') { start.setDate(start.getDate() - 7); return { start, end: now }; }
-    if (type === 'monthly') { start.setDate(1); return { start, end: now }; }
-    if (type === 'yearly') { start.setMonth(0, 1); return { start, end: now }; }
+  if (start && isNaN(start.getTime())) start = null;
+  if (end && isNaN(end.getTime())) end = null;
+
+  if (!start && !end) {
+    const defaultEnd = new Date(now);
+    defaultEnd.setHours(23, 59, 59, 999);
+
+    const defaultStart = new Date(now);
+    defaultStart.setHours(0, 0, 0, 0);
+
+    if (type === 'daily') {
+      return { start: defaultStart, end: defaultEnd };
+    }
+    if (type === 'weekly') {
+      defaultStart.setDate(defaultStart.getDate() - 7);
+      return { start: defaultStart, end: defaultEnd };
+    }
+    if (type === 'monthly') {
+      defaultStart.setDate(1);
+      return { start: defaultStart, end: defaultEnd };
+    }
+    if (type === 'yearly') {
+      defaultStart.setMonth(0, 1);
+      return { start: defaultStart, end: defaultEnd };
+    }
+
+    // Default to all historical records for site, expense, payment, worker, material, etc.
+    return { start: new Date(0), end: defaultEnd };
   }
 
-  start.setHours(0, 0, 0, 0);
-  return { start, end };
+  const finalStart = start ? new Date(start) : new Date(0);
+  finalStart.setHours(0, 0, 0, 0);
+
+  const finalEnd = end ? new Date(end) : new Date(now);
+  finalEnd.setHours(23, 59, 59, 999);
+
+  if (finalStart > finalEnd) {
+    const tempStart = new Date(finalEnd);
+    tempStart.setHours(0, 0, 0, 0);
+    const tempEnd = new Date(finalStart);
+    tempEnd.setHours(23, 59, 59, 999);
+    return { start: tempStart, end: tempEnd };
+  }
+
+  return { start: finalStart, end: finalEnd };
 }
 
 async function fetchReportData(queryParams, actor) {
@@ -52,7 +86,7 @@ async function fetchReportData(queryParams, actor) {
   const { start, end } = getDateRange(type, startDate, endDate);
   const isDeletedFilter = (showDeleted === 'true' || showDeleted === true) ? {} : { isDeleted: false };
 
-  const data = { title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report`, rows: [], summary: {} };
+  const data = { title: `${type ? type.charAt(0).toUpperCase() + type.slice(1) : 'General'} Report`, rows: [], summary: {} };
 
   // Resolve category context
   let isMaterialCat = false;
@@ -85,8 +119,7 @@ async function fetchReportData(queryParams, actor) {
   if (status && status !== 'paid' && status !== 'approved') {
     includeMaterials = false;
   }
-  if (paymentMethod && paymentMethod !== 'bankTransfer' && paymentMethod !== 'cash') {
-    // materials don't support card/upi etc. explicitly, so if not cash/bankTransfer, filter out
+  if (paymentMethod && paymentMethod !== 'bankTransfer') {
     includeMaterials = false;
   }
   if (category && !isMaterialCat) {
@@ -103,9 +136,12 @@ async function fetchReportData(queryParams, actor) {
     if (category) materialQuery.category = category;
     if (supplierId) materialQuery.supplier = supplierId;
     if (search) {
+      const suppliers = await Supplier.find({ name: new RegExp(search, 'i'), isDeleted: false }).select('_id');
       materialQuery.$or = [
         { materialName: new RegExp(search, 'i') },
         { invoiceNumber: new RegExp(search, 'i') },
+        { notes: new RegExp(search, 'i') },
+        ...(suppliers.length > 0 ? [{ supplier: { $in: suppliers.map(s => s._id) } }] : [])
       ];
     }
     materials = await Material.find(materialQuery)
@@ -140,7 +176,10 @@ async function fetchReportData(queryParams, actor) {
     }
     if (search) {
       const workers = await Worker.find({ name: new RegExp(search, 'i'), isDeleted: false }).select('_id');
-      paymentQuery.worker = { $in: workers.map((w) => w._id) };
+      paymentQuery.$or = [
+        { remarks: new RegExp(search, 'i') },
+        ...(workers.length > 0 ? [{ worker: { $in: workers.map((w) => w._id) } }] : [])
+      ];
     }
     payments = await WorkerPayment.find(paymentQuery)
       .populate('worker', 'name')
@@ -187,11 +226,11 @@ async function fetchReportData(queryParams, actor) {
     type: 'Material',
     date: m.date,
     site: m.site?.name || 'Unknown',
-    description: `${m.materialName} (${m.quantity} ${m.unit} @ ₹${m.rate})`,
+    description: `${m.materialName || 'Material'} (${m.quantity || 0} ${m.unit || 'units'} @ Rs. ${m.rate || 0})`,
     category: m.category?.name || 'Materials',
     vendor: m.supplier?.name || 'Unknown',
     paymentMethod: 'bankTransfer',
-    amount: m.totalAmount,
+    amount: m.totalAmount || 0,
     status: 'paid'
   })));
 
@@ -200,12 +239,12 @@ async function fetchReportData(queryParams, actor) {
     type: 'Payment',
     date: p.paidOn,
     site: p.site?.name || 'Unknown',
-    description: `Wages: ${p.worker?.name || 'Worker'} (${p.workingDays} days worked)`,
+    description: `Wages: ${p.worker?.name || 'Worker'} (${p.workingDays || 0} days worked)`,
     category: 'Worker Payment',
     vendor: '—',
-    paymentMethod: p.paymentMethod,
-    amount: p.netSalary,
-    status: p.status
+    paymentMethod: p.paymentMethod || 'cash',
+    amount: p.netSalary || 0,
+    status: p.status || 'pending'
   })));
 
   data.rows.push(...expenses.map((e) => ({
@@ -213,18 +252,18 @@ async function fetchReportData(queryParams, actor) {
     type: 'Expense',
     date: e.date,
     site: e.site?.name || 'Unknown',
-    description: e.title,
+    description: e.title || 'Overhead Expense',
     category: e.category?.name || 'Overheads',
     vendor: e.vendor || '—',
-    paymentMethod: e.paymentMethod,
-    amount: e.amount,
-    status: e.status
+    paymentMethod: e.paymentMethod || 'cash',
+    amount: e.amount || 0,
+    status: e.status || 'pending'
   })));
 
   // Calculate summaries matching filtered data ONLY
-  data.summary.materialTotal = materials.reduce((s, m) => s + m.totalAmount, 0);
-  data.summary.paymentTotal = payments.reduce((s, p) => s + p.netSalary, 0);
-  data.summary.expenseTotal = expenses.reduce((s, e) => s + e.amount, 0);
+  data.summary.materialTotal = materials.reduce((s, m) => s + (m.totalAmount || 0), 0);
+  data.summary.paymentTotal = payments.reduce((s, p) => s + (p.netSalary || 0), 0);
+  data.summary.expenseTotal = expenses.reduce((s, e) => s + (e.amount || 0), 0);
   data.summary.grandTotal = data.summary.materialTotal + data.summary.paymentTotal + data.summary.expenseTotal;
 
   // Sorting
@@ -247,34 +286,192 @@ async function fetchReportData(queryParams, actor) {
       return 0;
     });
   } else {
-    data.rows.sort((a, b) => new Date(b.date) - new Date(a.date));
+    data.rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }
 
   return data;
 }
 
-function generatePdf(data) {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50 });
-    const chunks = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+async function generatePdf(data, queryParams = {}, actor = {}) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 35, size: 'A4', bufferPages: true });
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
-    doc.fontSize(18).text(data.title, { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(10).text(`Generated: ${new Date().toLocaleString()}`);
-    doc.text(`Grand Total: ₹${(data.summary.grandTotal ?? 0).toLocaleString('en-IN')}`);
-    doc.moveDown();
+      const headerBgColor = '#1a1d29';
+      const textColor = '#0f172a';
+      const lightBg = '#f8fafc';
+      const borderColor = '#cbd5e1';
 
-    doc.fontSize(9);
-    data.rows.slice(0, 200).forEach((row) => {
-      doc.text(
-        `${new Date(row.date).toLocaleDateString()} | ${row.type} | ${row.site ?? '-'} | ${row.description} | ₹${row.amount?.toLocaleString('en-IN')}`
-      );
-    });
+      // 1. Header Banner
+      doc.rect(0, 0, doc.page.width, 65).fill('#0b2a5a');
+      doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('MALA CONSTRUCTION ERP', 35, 15);
+      doc.fontSize(10).font('Helvetica').text('Audited Operations & Financial Ledger', 35, 38);
 
-    doc.end();
+      const reportTitleStr = `${data.title || 'Financial Statement'}`;
+      doc.fillColor('#ffffff').fontSize(12).font('Helvetica-Bold').text(reportTitleStr.toUpperCase(), doc.page.width - 260, 24, { width: 225, align: 'right' });
+
+      doc.y = 78;
+
+      // 2. Metadata & Scope Box
+      const { start, end } = getDateRange(queryParams.type, queryParams.startDate, queryParams.endDate);
+      const periodStr = `${start.toLocaleDateString('en-IN')} to ${end.toLocaleDateString('en-IN')}`;
+
+      let siteName = 'All Active Sites (Company-wide)';
+      if (queryParams.siteId) {
+        const siteObj = await Site.findById(queryParams.siteId);
+        if (siteObj) siteName = `${siteObj.name} (${siteObj.code})`;
+      }
+
+      const metaBoxY = doc.y;
+      doc.rect(35, metaBoxY, 525, 48).fillAndStroke(lightBg, borderColor);
+
+      const metaY = metaBoxY + 8;
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0b2a5a').text(`Site Scope: `, 43, metaY, { continued: true });
+      doc.font('Helvetica').fillColor(textColor).text(siteName);
+
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0b2a5a').text(`Period: `, 43, metaY + 14, { continued: true });
+      doc.font('Helvetica').fillColor(textColor).text(periodStr);
+
+      const printDate = new Date().toLocaleString('en-IN');
+      const authorStr = actor.name || 'Admin';
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0b2a5a').text(`Generated By: `, 305, metaY, { continued: true });
+      doc.font('Helvetica').fillColor(textColor).text(`${authorStr} (${printDate})`);
+
+      const recCount = data.rows ? data.rows.length : 0;
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#0b2a5a').text(`Total Records: `, 305, metaY + 14, { continued: true });
+      doc.font('Helvetica').fillColor(textColor).text(`${recCount} entries`);
+
+      doc.y = metaBoxY + 56;
+
+      // 3. KPI Summary Metrics Boxes
+      const summaryBoxY = doc.y;
+      const boxWidth = 125;
+      const matTotal = data.summary?.materialTotal || 0;
+      const payTotal = data.summary?.paymentTotal || 0;
+      const expTotal = data.summary?.expenseTotal || 0;
+      const grandTotal = data.summary?.grandTotal || 0;
+
+      const kpis = [
+        { label: 'Material Costs', val: matTotal, color: '#10b981' },
+        { label: 'Wages Paid', val: payTotal, color: '#f59e0b' },
+        { label: 'Overhead Costs', val: expTotal, color: '#ef4444' },
+        { label: 'Grand Total', val: grandTotal, color: '#1e6fff' }
+      ];
+
+      kpis.forEach((kpi, idx) => {
+        const bx = 35 + idx * (boxWidth + 8);
+        doc.rect(bx, summaryBoxY, boxWidth, 36).fillAndStroke('#ffffff', borderColor);
+        doc.fontSize(7).font('Helvetica-Bold').fillColor('#64748b').text(kpi.label.toUpperCase(), bx + 6, summaryBoxY + 6);
+        doc.fontSize(9.5).font('Helvetica-Bold').fillColor(kpi.color).text(`Rs. ${kpi.val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, bx + 6, summaryBoxY + 18);
+      });
+
+      doc.y = summaryBoxY + 44;
+
+      // 4. Data Table Headers (Exact total sum = 525pt matching printable page width)
+      const headers = [
+        { label: 'S.No.', width: 28, align: 'center' },
+        { label: 'Date', width: 60, align: 'center' },
+        { label: 'Type', width: 50, align: 'center' },
+        { label: 'Project Site', width: 80, align: 'left' },
+        { label: 'Description', width: 150, align: 'left' },
+        { label: 'Category', width: 70, align: 'left' },
+        { label: 'Amount (Rs.)', width: 87, align: 'right' },
+      ];
+
+      const drawTableHeader = (yPos) => {
+        doc.rect(35, yPos, 525, 20).fill(headerBgColor);
+        let currX = 35;
+        headers.forEach((h) => {
+          const paddingLeft = h.align === 'right' ? 0 : 4;
+          const paddingRight = h.align === 'right' ? 4 : 0;
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff').text(
+            h.label,
+            currX + paddingLeft,
+            yPos + 5,
+            { width: h.width - (paddingLeft + paddingRight), align: h.align }
+          );
+          currX += h.width;
+        });
+        return yPos + 20;
+      };
+
+      let tableY = drawTableHeader(doc.y);
+
+      if (data.rows.length === 0) {
+        doc.rect(35, tableY, 525, 32).fillAndStroke(lightBg, borderColor);
+        doc.fontSize(9).font('Helvetica').fillColor('#64748b').text('No ledger records found matching the specified report filters.', 45, tableY + 10, { align: 'center', width: 505 });
+      } else {
+        data.rows.forEach((row, i) => {
+          const descText = row.description || '-';
+
+          // Calculate dynamic row height based on Description text
+          doc.fontSize(7.5).font('Helvetica');
+          const descHeight = doc.heightOfString(descText, { width: headers[4].width - 8 });
+          const rowHeight = Math.max(18, Math.min(48, Math.ceil(descHeight + 6)));
+
+          if (tableY + rowHeight > doc.page.height - 40) {
+            doc.addPage();
+            doc.rect(0, 0, doc.page.width, 26).fill('#0b2a5a');
+            doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text(`MALA CONSTRUCTION ERP - ${data.title} (Contd.)`, 35, 8);
+            tableY = drawTableHeader(34);
+          }
+
+          const rowBg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+          doc.rect(35, tableY, 525, rowHeight).fillAndStroke(rowBg, borderColor);
+
+          let currX = 35;
+          const formattedDateStr = row.date ? new Date(row.date).toISOString().slice(0, 10) : '-';
+          const amtStr = Number(row.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+          const values = [
+            { text: String(i + 1), width: headers[0].width, align: headers[0].align, multiLine: false },
+            { text: formattedDateStr, width: headers[1].width, align: headers[1].align, multiLine: false },
+            { text: row.type || '-', width: headers[2].width, align: headers[2].align, multiLine: false },
+            { text: row.site || '-', width: headers[3].width, align: headers[3].align, multiLine: false },
+            { text: descText, width: headers[4].width, align: headers[4].align, multiLine: true },
+            { text: row.category || '-', width: headers[5].width, align: headers[5].align, multiLine: false },
+            { text: amtStr, width: headers[6].width, align: headers[6].align, multiLine: false },
+          ];
+
+          values.forEach((v) => {
+            const paddingLeft = v.align === 'right' ? 0 : 4;
+            const paddingRight = v.align === 'right' ? 4 : 0;
+            const cellW = v.width - (paddingLeft + paddingRight);
+
+            doc.fontSize(7.5).font('Helvetica').fillColor(textColor).text(v.text, currX + paddingLeft, tableY + 4, {
+              width: cellW,
+              align: v.align,
+              lineBreak: v.multiLine,
+              ellipsis: !v.multiLine,
+              height: rowHeight - 6
+            });
+            currX += v.width;
+          });
+
+          tableY += rowHeight;
+        });
+      }
+
+      // 5. Footer with Page Numbers
+      const pages = doc.bufferedPageRange();
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(7.5).font('Helvetica').fillColor('#64748b').text(
+          `Page ${i + 1} of ${pages.count}   |   Mala Construction ERP   |   Confidential Operations Ledger`,
+          35,
+          doc.page.height - 24,
+          { align: 'center', width: 525 }
+        );
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -290,14 +487,14 @@ async function generateExcel(data, queryParams, actor) {
 
   // 1. Title Block
   sheet.addRow(['MALA CONSTRUCTION ERP']).font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF0B2A5A' } };
-  
-  const reportTitle = `${data.title} Ledger`;
+
+  const reportTitle = `${data.title || 'Financial'} Ledger Statement`;
   sheet.addRow([reportTitle]).font = { name: 'Arial', size: 14, bold: true };
-  
+
   const { start, end } = getDateRange(queryParams.type, queryParams.startDate, queryParams.endDate);
   const periodText = `Period: ${start.toLocaleDateString('en-IN')} to ${end.toLocaleDateString('en-IN')}`;
   sheet.addRow([periodText]).font = { name: 'Arial', size: 10, italic: true };
-  
+
   sheet.addRow([`Generated By: ${actor.name || 'Admin'} | Date: ${new Date().toLocaleString('en-IN')}`]).font = { name: 'Arial', size: 10 };
 
   // Site filter text
@@ -314,11 +511,15 @@ async function generateExcel(data, queryParams, actor) {
     const catObj = await MaterialCategory.findById(queryParams.category) || await ExpenseCategory.findById(queryParams.category);
     if (catObj) filterParts.push(`Category: ${catObj.name}`);
   }
+  if (queryParams.workerId) {
+    const workerObj = await Worker.findById(queryParams.workerId);
+    if (workerObj) filterParts.push(`Worker: ${workerObj.name}`);
+  }
   if (queryParams.status) filterParts.push(`Status: ${queryParams.status}`);
   if (queryParams.paymentMethod) filterParts.push(`Payment Method: ${queryParams.paymentMethod}`);
   if (queryParams.vendor) filterParts.push(`Vendor/Supplier: ${queryParams.vendor}`);
   if (queryParams.search) filterParts.push(`Search Query: "${queryParams.search}"`);
-  
+
   const filterSummary = filterParts.length > 0 ? `Filters Applied: ${filterParts.join(' | ')}` : 'Filters Applied: None';
   sheet.addRow([filterSummary]).font = { name: 'Arial', size: 10 };
 
@@ -326,7 +527,7 @@ async function generateExcel(data, queryParams, actor) {
 
   // 2. Summary Section
   sheet.addRow(['REPORT EXPENDITURE SUMMARY']).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF1E6FFF' } };
-  
+
   sheet.addRow([
     'Total Records',
     'Material Purchases',
@@ -334,7 +535,7 @@ async function generateExcel(data, queryParams, actor) {
     'Overhead Expenses',
     'Grand Total'
   ]).font = { name: 'Arial', size: 10, bold: true };
-  
+
   const summaryRow = sheet.addRow([
     data.rows.length,
     data.summary.materialTotal ?? 0,
@@ -343,10 +544,10 @@ async function generateExcel(data, queryParams, actor) {
     data.summary.grandTotal ?? 0
   ]);
   summaryRow.font = { name: 'Arial', size: 10, bold: true };
-  summaryRow.getCell(2).numFmt = '₹#,##0.00';
-  summaryRow.getCell(3).numFmt = '₹#,##0.00';
-  summaryRow.getCell(4).numFmt = '₹#,##0.00';
-  summaryRow.getCell(5).numFmt = '₹#,##0.00';
+  summaryRow.getCell(2).numFmt = '"Rs." #,##0.00';
+  summaryRow.getCell(3).numFmt = '"Rs." #,##0.00';
+  summaryRow.getCell(4).numFmt = '"Rs." #,##0.00';
+  summaryRow.getCell(5).numFmt = '"Rs." #,##0.00';
 
   sheet.addRow([]); // Blank row
 
@@ -363,16 +564,16 @@ async function generateExcel(data, queryParams, actor) {
     'Amount',
     'Status'
   ]);
-  
+
   headerRow.height = 28;
   headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-  
+
   // Style headers
   headerRow.eachCell((cell) => {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FF1A1D29' } // Dark Navy sidebar theme
+      fgColor: { argb: 'FF1A1D29' }
     };
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = {
@@ -388,7 +589,7 @@ async function generateExcel(data, queryParams, actor) {
   data.rows.forEach((row) => {
     const amountVal = Number(row.amount) || 0;
     const formattedDate = row.date ? new Date(row.date) : '';
-    
+
     const dataRow = sheet.addRow([
       index++,
       formattedDate,
@@ -401,20 +602,19 @@ async function generateExcel(data, queryParams, actor) {
       amountVal,
       row.status || ''
     ]);
-    
+
     dataRow.height = 20;
     dataRow.font = { name: 'Arial', size: 9 };
-    
-    // Zebra striping background pattern
-    const rowColor = (index % 2 === 0) ? 'FFFFFFFF' : 'FFF8FAFC'; // slate-50/white alternating
-    
+
+    const rowColor = (index % 2 === 0) ? 'FFFFFFFF' : 'FFF8FAFC';
+
     dataRow.eachCell((cell, colNumber) => {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: rowColor }
       };
-      
+
       cell.border = {
         top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
         bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -422,7 +622,6 @@ async function generateExcel(data, queryParams, actor) {
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
       };
 
-      // Alignments & Number formats
       if (colNumber === 1 || colNumber === 3 || colNumber === 8 || colNumber === 10) {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
       } else if (colNumber === 2) {
@@ -430,17 +629,15 @@ async function generateExcel(data, queryParams, actor) {
         cell.numFmt = 'yyyy-mm-dd';
       } else if (colNumber === 9) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        cell.numFmt = '₹#,##0.00';
+        cell.numFmt = '"Rs." #,##0.00';
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'left' };
       }
     });
   });
 
-  // Enable Auto Filter
   sheet.autoFilter = `A13:J13`;
 
-  // Freeze top panes (keep header visible, freeze row 1-13)
   sheet.views = [
     {
       state: 'frozen',
@@ -451,7 +648,6 @@ async function generateExcel(data, queryParams, actor) {
     }
   ];
 
-  // Adjust Column Widths dynamically
   sheet.columns.forEach((column) => {
     let maxLength = 0;
     column.eachCell({ includeEmpty: true }, (cell) => {
@@ -467,7 +663,6 @@ async function generateExcel(data, queryParams, actor) {
     column.width = Math.max(maxLength + 4, 12);
   });
 
-  // Footer with Page Numbers
   sheet.headerFooter.oddFooter = `&LGenerated: &D &T &RPage &P of &N`;
 
   return workbook.xlsx.writeBuffer();
@@ -496,18 +691,18 @@ async function generateReport(queryParams, actor) {
   const { type, format, startDate, endDate } = queryParams;
   const data = await fetchReportData(queryParams, actor);
 
-  if (data.rows.length === 0) {
-    throw ApiError.notFound('No data found for the selected report criteria');
-  }
-
   if (format === 'json') {
     return { data, isJson: true };
+  }
+
+  if (data.rows.length === 0) {
+    throw ApiError.notFound('No data found for the selected report criteria');
   }
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const startStr = startDate ? new Date(startDate).toISOString().slice(0, 10) : '';
   const endStr = endDate ? new Date(endDate).toISOString().slice(0, 10) : '';
-  
+
   let rangeStr = dateStr;
   if (startStr && endStr) {
     rangeStr = `${startStr}_to_${endStr}`;
@@ -523,7 +718,7 @@ async function generateReport(queryParams, actor) {
     return { buffer, contentType: 'text/csv', filename: `${type.charAt(0).toUpperCase() + type.slice(1)}_Report_${rangeStr}.csv` };
   }
 
-  const buffer = await generatePdf(data);
+  const buffer = await generatePdf(data, queryParams, actor);
   return { buffer, contentType: 'application/pdf', filename: `${type.charAt(0).toUpperCase() + type.slice(1)}_Report_${rangeStr}.pdf` };
 }
 

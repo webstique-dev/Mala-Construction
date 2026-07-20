@@ -11,14 +11,6 @@ const { parseDurationMs } = require('./tokenUtils');
 //   };
 // }
 
-// function baseCookieOptions() {
-//   return {
-//     httpOnly: true,
-//     secure: true,
-//     sameSite: 'none',
-//     domain: env.cookie.domain,
-//   };
-// }
 
 function baseCookieOptions() {
   return {
