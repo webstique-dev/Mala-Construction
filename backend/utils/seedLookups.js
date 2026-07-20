@@ -22,7 +22,7 @@ async function seedLookups() {
   for (const name of PROFESSIONS) {
     await Profession.findOneAndUpdate(
       { name },
-      { name, isActive: true },
+      { name, isActive: true, isDeleted: false },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
@@ -30,7 +30,7 @@ async function seedLookups() {
   for (const name of MATERIAL_CATEGORIES) {
     await MaterialCategory.findOneAndUpdate(
       { name },
-      { name, isActive: true },
+      { name, isActive: true, isDeleted: false },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
@@ -38,7 +38,7 @@ async function seedLookups() {
   for (const name of EXPENSE_CATEGORIES) {
     await ExpenseCategory.findOneAndUpdate(
       { name },
-      { name, isActive: true },
+      { name, isActive: true, isDeleted: false },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
