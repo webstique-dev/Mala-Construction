@@ -185,13 +185,20 @@
 }
 
 /* --- Charts Grid --- */
-.dashboard__charts-grid {
+/* .dashboard__charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 20px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
+} */
+
+.dashboard__charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  width: 100%;
 }
 
 .chart-panel {
@@ -406,8 +413,13 @@
 }
 
 @keyframes dashboard-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @media (max-width: 768px) {

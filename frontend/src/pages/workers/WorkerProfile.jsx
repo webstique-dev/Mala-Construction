@@ -7,6 +7,8 @@ import AccordionCard from '../../components/ui/AccordionCard';
 import '../../styles/operational-page.css';
 import './WorkerProfile.css';
 
+import { ProfileSkeleton, TableSkeleton, Skeleton } from '../../components/ui/Skeleton';
+
 export default function WorkerProfile() {
   const { id } = useParams();
   const { data, isLoading, isError } = useWorkerProfile(id);
@@ -14,11 +16,10 @@ export default function WorkerProfile() {
   if (isLoading) {
     return (
       <div className="worker-profile worker-profile--loading">
-        <div className="skeleton-line" style={{ width: 120, height: 20, marginBottom: 20 }} />
-        <div className="site-card-skeleton" style={{ height: 160 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, marginTop: 24 }}>
-          <div className="site-card-skeleton" style={{ height: 300 }} />
-          <div className="site-card-skeleton" style={{ height: 300 }} />
+        <Skeleton width="120px" height="20px" style={{ marginBottom: 20 }} />
+        <ProfileSkeleton />
+        <div style={{ marginTop: 24 }}>
+          <TableSkeleton rows={5} columns={5} />
         </div>
       </div>
     );

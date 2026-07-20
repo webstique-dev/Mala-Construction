@@ -14,6 +14,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { reportService } from '../../services/reportService';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import { CardSkeleton, TableSkeleton } from '../../components/ui/Skeleton';
 import AccordionCard from '../../components/ui/AccordionCard';
 import Drawer from '../../components/drawers/Drawer';
 import './Reports.css';
@@ -292,45 +293,51 @@ export default function Reports() {
 
       {/* KPI Summary Cards */}
       <div className="reports-page__summary-cards">
-        <div className="reports-page__kpi-card">
-          <div className="reports-page__kpi-icon-container"><Layers size={20} /></div>
-          <div className="reports-page__kpi-details">
-            <span className="reports-page__kpi-label">Filtered Records</span>
-            <span className="reports-page__kpi-value">{rows.length}</span>
-          </div>
-        </div>
+        {isLoadingReport ? (
+          <CardSkeleton count={5} />
+        ) : (
+          <>
+            <div className="reports-page__kpi-card">
+              <div className="reports-page__kpi-icon-container"><Layers size={20} /></div>
+              <div className="reports-page__kpi-details">
+                <span className="reports-page__kpi-label">Filtered Records</span>
+                <span className="reports-page__kpi-value">{rows.length}</span>
+              </div>
+            </div>
 
-        <div className="reports-page__kpi-card">
-          <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-success-500)' }}><ShoppingBag size={20} /></div>
-          <div className="reports-page__kpi-details">
-            <span className="reports-page__kpi-label">Materials Cost</span>
-            <span className="reports-page__kpi-value">{formatCurrency(reportData?.summary?.materialTotal || 0)}</span>
-          </div>
-        </div>
+            <div className="reports-page__kpi-card">
+              <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-success-500)' }}><ShoppingBag size={20} /></div>
+              <div className="reports-page__kpi-details">
+                <span className="reports-page__kpi-label">Materials Cost</span>
+                <span className="reports-page__kpi-value">{formatCurrency(reportData?.summary?.materialTotal || 0)}</span>
+              </div>
+            </div>
 
-        <div className="reports-page__kpi-card">
-          <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-warning-500)' }}><CreditCard size={20} /></div>
-          <div className="reports-page__kpi-details">
-            <span className="reports-page__kpi-label">Wages / Labour Cost</span>
-            <span className="reports-page__kpi-value">{formatCurrency((reportData?.summary?.paymentTotal || 0) + (reportData?.summary?.attendanceTotal || 0))}</span>
-          </div>
-        </div>
+            <div className="reports-page__kpi-card">
+              <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-warning-500)' }}><CreditCard size={20} /></div>
+              <div className="reports-page__kpi-details">
+                <span className="reports-page__kpi-label">Wages / Labour Cost</span>
+                <span className="reports-page__kpi-value">{formatCurrency((reportData?.summary?.paymentTotal || 0) + (reportData?.summary?.attendanceTotal || 0))}</span>
+              </div>
+            </div>
 
-        <div className="reports-page__kpi-card">
-          <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-danger-500)' }}><Receipt size={20} /></div>
-          <div className="reports-page__kpi-details">
-            <span className="reports-page__kpi-label">Overhead Costs</span>
-            <span className="reports-page__kpi-value">{formatCurrency(reportData?.summary?.expenseTotal || 0)}</span>
-          </div>
-        </div>
+            <div className="reports-page__kpi-card">
+              <div className="reports-page__kpi-icon-container" style={{ color: 'var(--color-danger-500)' }}><Receipt size={20} /></div>
+              <div className="reports-page__kpi-details">
+                <span className="reports-page__kpi-label">Overhead Costs</span>
+                <span className="reports-page__kpi-value">{formatCurrency(reportData?.summary?.expenseTotal || 0)}</span>
+              </div>
+            </div>
 
-        <div className="reports-page__kpi-card" style={{ border: '1px solid var(--color-primary-300)', backgroundColor: 'var(--color-primary-50)' }}>
-          <div className="reports-page__kpi-icon-container" style={{ backgroundColor: 'var(--color-primary-500)', color: '#ffffff' }}><Database size={20} /></div>
-          <div className="reports-page__kpi-details">
-            <span className="reports-page__kpi-label" style={{ color: 'var(--color-primary-700)' }}>Grand Total</span>
-            <span className="reports-page__kpi-value" style={{ color: 'var(--color-primary-900)' }}>{formatCurrency(reportData?.summary?.grandTotal || 0)}</span>
-          </div>
-        </div>
+            <div className="reports-page__kpi-card" style={{ border: '1px solid var(--color-primary-300)', backgroundColor: 'var(--color-primary-50)' }}>
+              <div className="reports-page__kpi-icon-container" style={{ backgroundColor: 'var(--color-primary-500)', color: '#ffffff' }}><Database size={20} /></div>
+              <div className="reports-page__kpi-details">
+                <span className="reports-page__kpi-label" style={{ color: 'var(--color-primary-700)' }}>Grand Total</span>
+                <span className="reports-page__kpi-value" style={{ color: 'var(--color-primary-900)' }}>{formatCurrency(reportData?.summary?.grandTotal || 0)}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Interactive Filters Panel */}
@@ -710,9 +717,7 @@ export default function Reports() {
         </div>
 
         {isLoadingReport ? (
-          <div className="reports-page__empty-state">
-            <p>Loading report preview metrics from database...</p>
-          </div>
+          <TableSkeleton rows={10} columns={9} />
         ) : rows.length === 0 ? (
           <div className="reports-page__empty-state">
             <Inbox size={48} style={{ opacity: 0.2, marginBottom: 8 }} />

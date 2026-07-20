@@ -10,6 +10,7 @@ import {
 import { useToast } from '../../contexts/ToastContext';
 import Button from '../../components/common/Button';
 import Card from '../../components/ui/Card';
+import { AccordionSkeleton } from '../../components/ui/Skeleton';
 import DatePickerInput from '../../components/ui/DatePickerInput';
 import './Notifications.css';
 
@@ -83,7 +84,7 @@ export default function Notifications() {
     limit
   };
 
-  const { data, isLoading } = useNotifications(queryParams);
+  const { data, isLoading, isFetching } = useNotifications(queryParams);
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const deleteNotif = useDeleteNotification();
@@ -194,10 +195,8 @@ export default function Notifications() {
       </Card>
 
       {/* Notifications feed */}
-      {isLoading ? (
-        <div className="notifications-page__empty">
-          <p>Loading notification archives...</p>
-        </div>
+      {isLoading || (isFetching && !items.length) ? (
+        <AccordionSkeleton count={5} />
       ) : items.length === 0 ? (
         <div className="notifications-page__empty">
           <Inbox size={48} style={{ opacity: 0.2, marginBottom: 12 }} />

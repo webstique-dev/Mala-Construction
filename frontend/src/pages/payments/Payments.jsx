@@ -12,6 +12,7 @@ import { useLookups } from '../../hooks/useLookups';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import { TableSkeleton } from '../../components/ui/Skeleton';
 import AccordionCard from '../../components/ui/AccordionCard';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
@@ -31,7 +32,7 @@ export default function Payments() {
   const { isSuperAdmin, siteId } = useSiteScope(siteFilter || undefined);
   const debouncedSearch = useDebouncedValue(search);
   const { activeSites } = useLookups(siteId);
-  const { data, isLoading, isError } = usePayments({
+  const { data, isLoading, isError, isFetching } = usePayments({
     page,
     limit: 10,
     search: debouncedSearch,
@@ -167,12 +168,8 @@ export default function Payments() {
         </div>
       )}
 
-      {!isError && isLoading && (
-        <div className="data-table__skeleton" aria-busy="true">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div className="data-table__skeleton-row" key={i} />
-          ))}
-        </div>
+      {!isError && (isLoading || (isFetching && !data?.items?.length)) && (
+        <TableSkeleton rows={8} columns={8} />
       )}
 
       {!isError && !isLoading && (data?.items ?? []).length === 0 && (

@@ -33,13 +33,15 @@ const ACTION_ICONS = {
   other: Activity,
 };
 
+import { Skeleton } from '../../components/ui/Skeleton';
+
 function ActivityItemSkeleton() {
   return (
     <div className="activity-timeline__item-skeleton">
-      <div className="skeleton-line" style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0 }} />
+      <Skeleton width="36px" height="36px" circle style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div className="skeleton-line" style={{ width: '40%', height: 14 }} />
-        <div className="skeleton-line" style={{ width: '80%', height: 12 }} />
+        <Skeleton width="40%" height="14px" />
+        <Skeleton width="80%" height="12px" />
       </div>
     </div>
   );
@@ -55,7 +57,7 @@ export default function ActivityLogs() {
 
   const { isSuperAdmin, siteId } = useSiteScope(siteFilter || undefined);
   const { activeSites } = useLookups(siteId);
-  const { data, isLoading, isError } = useActivityLogs({
+  const { data, isLoading, isError, isFetching } = useActivityLogs({
     page,
     limit: 10,
     siteId: isSuperAdmin ? siteFilter || undefined : siteId,
@@ -144,7 +146,7 @@ export default function ActivityLogs() {
         </div>
       )}
 
-      {!isError && isLoading && (
+      {!isError && (isLoading || (isFetching && !data?.items?.length)) && (
         <Card className="activity-timeline">
           {Array.from({ length: 6 }).map((_, i) => (
             <ActivityItemSkeleton key={i} />

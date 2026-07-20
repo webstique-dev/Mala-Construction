@@ -101,22 +101,23 @@ function StatCard({ label, value, format = 'currency', isFeatured = false, badge
   );
 }
 
+import { Skeleton, CardSkeleton, ChartSkeleton, TableSkeleton } from '../../components/ui/Skeleton';
+
 function DashboardSkeleton() {
   return (
     <div className="dashboard dashboard--loading">
-      <div className="dashboard-skeleton__header">
-        <div className="skeleton-line skeleton-line--title" />
-        <div className="skeleton-line skeleton-line--subtitle" />
+      <div className="dashboard__info-header" style={{ marginBottom: 24 }}>
+        <Skeleton width="220px" height="28px" style={{ marginBottom: 8 }} />
+        <Skeleton width="340px" height="14px" />
       </div>
-      <div className="dashboard__cards">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="dashboard-skeleton__card" />
-        ))}
+      <div className="dashboard__cards-grid" style={{ marginBottom: 24 }}>
+        <CardSkeleton count={8} />
       </div>
-      <div className="dashboard__charts">
-        <div className="dashboard-skeleton__chart" />
-        <div className="dashboard-skeleton__chart" />
+      <div className="dashboard__charts-grid" style={{ marginBottom: 24 }}>
+        <ChartSkeleton type="line" />
+        <ChartSkeleton type="doughnut" />
       </div>
+      <TableSkeleton rows={5} columns={5} />
     </div>
   );
 }
@@ -610,29 +611,6 @@ export default function Dashboard() {
 
       {/* Activity Logs Section */}
       <div className="dashboard__activity-layout">
-        <Card className="activity-panel">
-          <div className="activity-panel__header">
-            <h3>Recent Operations Logs</h3>
-          </div>
-          {recent?.activities?.length ? (
-            <div className="activity-panel__list">
-              {recent.activities.map((a) => (
-                <div className="activity-panel__item" key={a._id}>
-                  <div className="activity-panel__bullet" />
-                  <div className="activity-panel__info">
-                    <p className="activity-panel__text">
-                      <strong>{a.actor?.name}</strong> {a.action} {a.entityType}
-                    </p>
-                    <span className="activity-panel__time">{formatDateTime(a.createdAt)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="activity-panel__empty">No recent logs found.</p>
-          )}
-        </Card>
-
         {isSuperAdmin && (
           <>
             <Card className="activity-panel">
@@ -658,26 +636,50 @@ export default function Dashboard() {
 
             <Card className="activity-panel">
               <div className="activity-panel__header">
-                <h3>Recent Wage Payments</h3>
+                <h3>Recent Overhead Expenses</h3>
               </div>
-              {recent?.payments?.length ? (
+              {recent?.expenses?.length ? (
                 <div className="activity-panel__list">
-                  {recent.payments.map((p) => (
-                    <div className="activity-panel__item activity-panel__item--row" key={p._id}>
+                  {recent.expenses.map((e) => (
+                    <div className="activity-panel__item activity-panel__item--row" key={e._id}>
                       <div className="activity-panel__info">
-                        <p className="activity-panel__text"><strong>{p.worker?.name}</strong></p>
-                        <span className="activity-panel__time">{p.site?.name}</span>
+                        <p className="activity-panel__text"><strong>{e.title || e.category?.name || 'Expense Entry'}</strong></p>
+                        <span className="activity-panel__time">{e.site?.name || 'All Sites'}</span>
                       </div>
-                      <span className="activity-panel__amount activity-panel__amount--success">{formatCurrency(p.netSalary)}</span>
+                      <span className="activity-panel__amount">{formatCurrency(e.amount)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="activity-panel__empty">No payments logged.</p>
+                <p className="activity-panel__empty">No expenses logged.</p>
               )}
             </Card>
           </>
         )}
+        <Card className="activity-panel">
+          <div className="activity-panel__header">
+            <h3>Recent Operations Logs</h3>
+          </div>
+          {recent?.activities?.length ? (
+            <div className="activity-panel__list">
+              {recent.activities.map((a) => (
+                <div className="activity-panel__item" key={a._id}>
+                  <div className="activity-panel__bullet" />
+                  <div className="activity-panel__info">
+                    <p className="activity-panel__text">
+                      <strong>{a.actor?.name}</strong> {a.action} {a.entityType}
+                    </p>
+                    <span className="activity-panel__time">{formatDateTime(a.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="activity-panel__empty">No recent logs found.</p>
+          )}
+        </Card>
+
+
       </div>
     </div>
   );

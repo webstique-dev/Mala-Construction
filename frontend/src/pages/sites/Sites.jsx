@@ -13,21 +13,7 @@ import './Sites.css';
 
 const STATUS_LABELS = { active: 'Active', completed: 'Completed', archived: 'Archived' };
 
-function SiteCardSkeleton() {
-  return (
-    <div className="site-card-skeleton">
-      <div className="site-card-skeleton__header">
-        <div className="skeleton-line skeleton-line--title" />
-        <div className="skeleton-line skeleton-line--badge" />
-      </div>
-      <div className="site-card-skeleton__body">
-        <div className="skeleton-line skeleton-line--text" />
-        <div className="skeleton-line skeleton-line--text" />
-      </div>
-      <div className="site-card-skeleton__footer" />
-    </div>
-  );
-}
+import { GridCardSkeleton } from '../../components/ui/Skeleton';
 
 export default function Sites() {
   const [search, setSearch] = useState('');
@@ -72,7 +58,7 @@ export default function Sites() {
     sortOrder,
     showDeleted,
   }), [page, debouncedSearch, filters, showDeleted, sortBy, sortOrder]);
-  const { data, isLoading, isError } = useSites(queryParams);
+  const { data, isLoading, isError, isFetching } = useSites(queryParams);
   const archiveSite = useArchiveSite();
   const deleteSite = useDeleteSite();
   const restoreSite = useRestoreSite();
@@ -197,11 +183,9 @@ export default function Sites() {
         </div>
       )}
 
-      {!isError && isLoading && (
+      {!isError && (isLoading || (isFetching && !data?.items?.length)) && (
         <div className="sites-page__grid">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SiteCardSkeleton key={i} />
-          ))}
+          <GridCardSkeleton count={6} />
         </div>
       )}
 

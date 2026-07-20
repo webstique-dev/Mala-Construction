@@ -13,6 +13,7 @@ import { useLookups } from '../../hooks/useLookups';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
 import Card from '../../components/ui/Card';
+import { TableSkeleton } from '../../components/ui/Skeleton';
 import { ImageThumbnail } from '../../components/common/ImagePreviewModal';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
@@ -32,7 +33,7 @@ export default function Materials() {
   const { isSuperAdmin, siteId } = useSiteScope(siteFilter || undefined);
   const debouncedSearch = useDebouncedValue(search);
   const { materialCategories, activeSites } = useLookups(siteId);
-  const { data, isLoading, isError } = useMaterials({
+  const { data, isLoading, isError, isFetching } = useMaterials({
     page,
     limit: 10,
     search: debouncedSearch || undefined,
@@ -149,12 +150,8 @@ export default function Materials() {
         </div>
       )}
 
-      {!isError && isLoading && (
-        <div className="data-table__skeleton" aria-busy="true">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div className="data-table__skeleton-row" key={i} />
-          ))}
-        </div>
+      {!isError && (isLoading || (isFetching && !data?.items?.length)) && (
+        <TableSkeleton rows={8} columns={8} />
       )}
 
       {!isError && !isLoading && (data?.items ?? []).length === 0 && (

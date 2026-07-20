@@ -26,6 +26,7 @@ import Button from '../../components/common/Button';
 import DatePickerInput from '../../components/ui/DatePickerInput';
 import TimePickerInput from '../../components/ui/TimePickerInput';
 import Card from '../../components/ui/Card';
+import { CardSkeleton, TableSkeleton } from '../../components/ui/Skeleton';
 import AccordionCard from '../../components/ui/AccordionCard';
 import Drawer from '../../components/drawers/Drawer';
 import { ImageThumbnail } from '../../components/common/ImagePreviewModal';
@@ -375,45 +376,51 @@ export default function Attendance() {
 
       {/* KPI Cards */}
       <div className="attendance-page__kpi-grid">
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__icon-wrap kpi-icon-blue">
-            <Users size={22} />
-          </div>
-          <div className="attendance-kpi-card__info">
-            <span className="attendance-kpi-card__label">Workers Present Today</span>
-            <span className="attendance-kpi-card__value">{stats.todayWorkersPresent ?? 0}</span>
-          </div>
-        </div>
+        {statsQuery.isLoading ? (
+          <CardSkeleton count={4} />
+        ) : (
+          <>
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__icon-wrap kpi-icon-blue">
+                <Users size={22} />
+              </div>
+              <div className="attendance-kpi-card__info">
+                <span className="attendance-kpi-card__label">Workers Present Today</span>
+                <span className="attendance-kpi-card__value">{stats.todayWorkersPresent ?? 0}</span>
+              </div>
+            </div>
 
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__icon-wrap kpi-icon-green">
-            <DollarSign size={22} />
-          </div>
-          <div className="attendance-kpi-card__info">
-            <span className="attendance-kpi-card__label">Today's Labour Expense</span>
-            <span className="attendance-kpi-card__value">{formatCurrency(stats.todayLabourExpense || 0)}</span>
-          </div>
-        </div>
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__icon-wrap kpi-icon-green">
+                <DollarSign size={22} />
+              </div>
+              <div className="attendance-kpi-card__info">
+                <span className="attendance-kpi-card__label">Today's Labour Expense</span>
+                <span className="attendance-kpi-card__value">{formatCurrency(stats.todayLabourExpense || 0)}</span>
+              </div>
+            </div>
 
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__icon-wrap kpi-icon-amber">
-            <Calendar size={22} />
-          </div>
-          <div className="attendance-kpi-card__info">
-            <span className="attendance-kpi-card__label">Weekly Expense</span>
-            <span className="attendance-kpi-card__value">{formatCurrency(stats.weeklyLabourExpense || 0)}</span>
-          </div>
-        </div>
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__icon-wrap kpi-icon-amber">
+                <Calendar size={22} />
+              </div>
+              <div className="attendance-kpi-card__info">
+                <span className="attendance-kpi-card__label">Weekly Expense</span>
+                <span className="attendance-kpi-card__value">{formatCurrency(stats.weeklyLabourExpense || 0)}</span>
+              </div>
+            </div>
 
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__icon-wrap kpi-icon-purple">
-            <Briefcase size={22} />
-          </div>
-          <div className="attendance-kpi-card__info">
-            <span className="attendance-kpi-card__label">Monthly Expense</span>
-            <span className="attendance-kpi-card__value">{formatCurrency(stats.monthlyLabourExpense || 0)}</span>
-          </div>
-        </div>
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__icon-wrap kpi-icon-purple">
+                <Briefcase size={22} />
+              </div>
+              <div className="attendance-kpi-card__info">
+                <span className="attendance-kpi-card__label">Monthly Expense</span>
+                <span className="attendance-kpi-card__value">{formatCurrency(stats.monthlyLabourExpense || 0)}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {activeTab === 'daily' ? (
@@ -637,8 +644,8 @@ export default function Attendance() {
               </div> */}
             </div>
 
-            {attendanceQuery.isLoading ? (
-              <div className="table-empty-pad">Loading labour records...</div>
+            {attendanceQuery.isLoading || (attendanceQuery.isFetching && !attendanceList.length) ? (
+              <TableSkeleton rows={8} columns={10} />
             ) : attendanceList.length === 0 ? (
               <div className="table-empty-text">
                 No daily labour entries found matching criteria. Use "Fast Crew Batch Entry" to quickly log workers.

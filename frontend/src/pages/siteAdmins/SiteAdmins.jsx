@@ -14,24 +14,7 @@ import { motion } from 'framer-motion';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
 
-function AdminCardSkeleton() {
-  return (
-    <div className="site-card-skeleton" style={{ height: 200 }}>
-      <div className="site-card-skeleton__header" style={{ display: 'flex', gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: 'var(--color-border)', flexShrink: 0 }} className="skeleton-line" />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div className="skeleton-line" style={{ width: '80%', height: 16 }} />
-          <div className="skeleton-line" style={{ width: '50%', height: 12 }} />
-        </div>
-      </div>
-      <div className="site-card-skeleton__body">
-        <div className="skeleton-line" style={{ width: '100%', height: 12 }} />
-        <div className="skeleton-line" style={{ width: '90%', height: 12 }} />
-      </div>
-      <div className="site-card-skeleton__footer" />
-    </div>
-  );
-}
+import { GridCardSkeleton } from '../../components/ui/Skeleton';
 
 export default function SiteAdmins() {
   const [search, setSearch] = useState('');
@@ -76,7 +59,7 @@ export default function SiteAdmins() {
     sortOrder,
     showDeleted,
   }), [page, debouncedSearch, filters, showDeleted, sortBy, sortOrder]);
-  const { data, isLoading, isError } = useSiteAdmins(queryParams);
+  const { data, isLoading, isError, isFetching } = useSiteAdmins(queryParams);
   const { data: sitesData } = useSites({ limit: 100, sortBy: 'name', sortOrder: 'asc' });
   const deleteAdmin = useDeleteSiteAdmin();
   const restoreAdmin = useRestoreSiteAdmin();
@@ -212,11 +195,9 @@ export default function SiteAdmins() {
         </div>
       )}
 
-      {!isError && isLoading && (
+      {!isError && (isLoading || (isFetching && !data?.items?.length)) && (
         <div className="sites-page__grid">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <AdminCardSkeleton key={i} />
-          ))}
+          <GridCardSkeleton count={6} />
         </div>
       )}
 

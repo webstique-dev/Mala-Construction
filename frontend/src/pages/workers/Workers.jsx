@@ -16,24 +16,7 @@ import { motion } from 'framer-motion';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
 
-function WorkerCardSkeleton() {
-  return (
-    <div className="site-card-skeleton">
-      <div className="site-card-skeleton__header" style={{ display: 'flex', gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'var(--color-border)', flexShrink: 0 }} className="skeleton-line" />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div className="skeleton-line" style={{ width: '70%', height: 16 }} />
-          <div className="skeleton-line" style={{ width: '40%', height: 12 }} />
-        </div>
-      </div>
-      <div className="site-card-skeleton__body">
-        <div className="skeleton-line" style={{ width: '100%', height: 12 }} />
-        <div className="skeleton-line" style={{ width: '80%', height: 12 }} />
-      </div>
-      <div className="site-card-skeleton__footer" />
-    </div>
-  );
-}
+import { GridCardSkeleton } from '../../components/ui/Skeleton';
 
 export default function Workers() {
   const [search, setSearch] = useState('');
@@ -49,7 +32,7 @@ export default function Workers() {
   const { isSuperAdmin, siteId } = useSiteScope(siteFilter || undefined);
   const debouncedSearch = useDebouncedValue(search);
   const { professions, activeSites } = useLookups(siteId);
-  const { data, isLoading, isError } = useWorkers({
+  const { data, isLoading, isError, isFetching } = useWorkers({
     page,
     limit: 9,
     search: debouncedSearch || undefined,
@@ -143,11 +126,9 @@ export default function Workers() {
         </div>
       )}
 
-      {!isError && isLoading && (
+      {!isError && (isLoading || (isFetching && !data?.items?.length)) && (
         <div className="sites-page__grid">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <WorkerCardSkeleton key={i} />
-          ))}
+          <GridCardSkeleton count={6} />
         </div>
       )}
 

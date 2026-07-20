@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import Button from '../../components/common/Button';
 import FormField from '../../components/forms/FormField';
 import Card from '../../components/ui/Card';
+import { FormSkeleton } from '../../components/ui/Skeleton';
 import { Shield, Camera, Database, FileText, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import './Profile.css'; // Reuse profile card / tabs layout styles
@@ -189,7 +190,7 @@ export default function Settings() {
           <p>Configure company parameters, invoices prefixes, default taxes, and backup schedules.</p>
         </div>
         <Card className="profile-card">
-          <p>Loading company configuration...</p>
+          <FormSkeleton fields={8} />
         </Card>
       </div>
     );
