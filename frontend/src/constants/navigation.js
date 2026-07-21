@@ -36,6 +36,7 @@ export const NAV_GROUPS = [
     roles: null,
     items: [
       { label: 'Materials', to: '/materials', icon: Boxes, roles: null },
+      { label: 'Workers', to: '/workers', icon: HardHat, roles: null },
       { label: 'Labour Attendance', to: '/attendance', icon: CalendarCheck, roles: null },
       // { label: 'Payments', to: '/payments', icon: Wallet, roles: null },
       { label: 'Expenses', to: '/expenses', icon: Receipt, roles: null },

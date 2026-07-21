@@ -34,6 +34,19 @@ export function useContractorsList(params) {
   });
 }
 
+/**
+ * Fetches previous day workers for the "Copy Previous Day" modal.
+ * Only fires when enabled=true (triggered by button click).
+ */
+export function usePreviousDayWorkers(params, enabled = false) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.ATTENDANCE, 'previous-day-workers', params],
+    queryFn: () => attendanceService.previousDayWorkers(params),
+    enabled: enabled && !!params?.siteId && !!params?.date,
+    staleTime: 60_000,
+  });
+}
+
 export function useRecordAttendance() {
   const qc = useQueryClient();
   return useMutation({
@@ -81,3 +94,4 @@ export function useDeleteAttendance() {
     },
   });
 }
+

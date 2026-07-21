@@ -8,6 +8,7 @@ export const attendanceService = {
   batchRecord: (payload) => apiClient.post('/attendance/batch', payload).then((r) => r.data),
   weeklyReport: (params) => apiClient.get('/attendance/weekly-report', { params }).then((r) => r.data.data),
   contractors: (params) => apiClient.get('/attendance/contractors', { params }).then((r) => r.data.data),
+  previousDayWorkers: (params) => apiClient.get('/attendance/previous-day-workers', { params }).then((r) => r.data.data),
   update: (id, payload) => apiClient.put(`/attendance/${id}`, payload).then((r) => r.data),
   remove: (id) => apiClient.delete(`/attendance/${id}`).then((r) => r.data),
 };

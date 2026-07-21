@@ -1,5 +1,7 @@
 const attendanceRepo = require('../repositories/attendance.repository');
+const Attendance = require('../models/Attendance');
 const Profession = require('../models/Profession');
+const Worker = require('../models/Worker');
 const ApiError = require('../utils/ApiError');
 const { resolveSiteScope, assertSiteAccess } = require('../utils/siteScope');
 const { recordActivity, logActivity } = require('./auditLogService');
@@ -47,12 +49,13 @@ async function recordAttendance(data, actor, file) {
     date,
     contractor,
     profession,
-    workerName = '',
-    mobileNumber = '',
+    worker: workerRef,   // optional Worker Master FK
+    workerName: rawWorkerName = '',
+    mobileNumber: rawMobileNumber = '',
     gender = 'unspecified',
     inTime = '09:00',
     outTime = '18:00',
-    dailyWage = 0,
+    dailyWage: rawDailyWage = 0,
     status = 'present',
     overtimeHours = 0,
     remarks = '',
@@ -64,14 +67,56 @@ async function recordAttendance(data, actor, file) {
 
   assertSiteAccess(actor, site);
 
+  // --- Worker Master integration ---
+  let resolvedWorkerName = rawWorkerName;
+  let resolvedMobileNumber = rawMobileNumber;
+  let resolvedDailyWage = rawDailyWage;
+  let resolvedProfession = profession;
+  let resolvedWorkerRef = null;
+
+  if (workerRef) {
+    // Validate worker belongs to this site
+    const workerDoc = await Worker.findOne({ _id: workerRef, site, isDeleted: false });
+    if (!workerDoc) throw ApiError.badRequest('Worker not found or does not belong to this site');
+
+    resolvedWorkerRef = workerDoc._id;
+    resolvedWorkerName = rawWorkerName || workerDoc.name;
+    resolvedMobileNumber = rawMobileNumber || workerDoc.phone;
+    resolvedDailyWage = rawDailyWage || workerDoc.dailyWage;
+    resolvedProfession = profession || workerDoc.profession;
+  }
+
+  // Check for duplicate attendance (by worker FK, name, or phone)
+  const attendanceDate = new Date(date);
+  const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(attendanceDate); dayEnd.setHours(23, 59, 59, 999);
+
+  const nameToCheck = (resolvedWorkerName || '').trim();
+  const phoneToCheck = (resolvedMobileNumber || '').trim();
+
+  const dupConditions = [];
+  if (resolvedWorkerRef) dupConditions.push({ worker: resolvedWorkerRef });
+  if (nameToCheck) dupConditions.push({ workerName: new RegExp(`^${nameToCheck}$`, 'i') });
+  if (phoneToCheck && phoneToCheck.length >= 5) dupConditions.push({ mobileNumber: phoneToCheck });
+
+  if (dupConditions.length > 0) {
+    const dup = await Attendance.findOne({
+      site,
+      date: { $gte: dayStart, $lte: dayEnd },
+      isDeleted: false,
+      $or: dupConditions,
+    });
+    if (dup) throw ApiError.conflict(`This worker has already been added to today's attendance.`);
+  }
+
   let profName = '';
-  const profDoc = await Profession.findById(profession);
+  const profDoc = await Profession.findById(resolvedProfession);
   if (profDoc) profName = profDoc.name;
 
   const workingHours = calculateWorkingHours(inTime, outTime);
   const { overtimeAmount, totalAmount, dailyLabourCost } = calculateFinancials(
     status,
-    dailyWage,
+    resolvedDailyWage,
     overtimeHours
   );
 
@@ -87,17 +132,18 @@ async function recordAttendance(data, actor, file) {
   const payload = {
     site,
     date: new Date(date),
+    worker: resolvedWorkerRef,
     contractor: contractor ? contractor.trim() : 'Direct / In-House',
-    profession,
+    profession: resolvedProfession,
     professionName: profName,
-    workerName: workerName ? workerName.trim() : '',
-    mobileNumber: mobileNumber ? mobileNumber.trim() : '',
+    workerName: resolvedWorkerName ? resolvedWorkerName.trim() : '',
+    mobileNumber: resolvedMobileNumber ? resolvedMobileNumber.trim() : '',
     gender: ['male', 'female', 'other'].includes(gender) ? gender : 'unspecified',
     inTime,
     outTime,
     workingHours,
     status,
-    dailyWage: Number(dailyWage) || 0,
+    dailyWage: Number(resolvedDailyWage) || 0,
     overtimeHours: Number(overtimeHours) || 0,
     overtimeAmount,
     totalAmount,
@@ -148,45 +194,129 @@ async function recordBatchAttendance(payload, actor) {
   if (profDoc) profName = profDoc.name;
 
   const attendanceDate = new Date(date);
+  const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(attendanceDate); dayEnd.setHours(23, 59, 59, 999);
   const commonWorkingHours = calculateWorkingHours(inTime, outTime);
   const contractorName = contractor ? contractor.trim() : 'Direct / In-House';
 
-  const documentsToInsert = workers.map((w) => {
-    const workerWage = Number(w.dailyWage ?? dailyWage) || 0;
+  // Collect worker FK refs, names, and phone numbers already present in DB for today
+  const workerRefs = workers.map((w) => w.worker).filter(Boolean);
+  const existingWorkerAttendance = new Set();
+  const existingWorkerNames = new Set();
+  const existingWorkerPhones = new Set();
+
+  const existingInDb = await Attendance.find({
+    site,
+    date: { $gte: dayStart, $lte: dayEnd },
+    isDeleted: false,
+  }).select('worker workerName mobileNumber');
+
+  existingInDb.forEach((e) => {
+    if (e.worker) existingWorkerAttendance.add(e.worker.toString());
+    if (e.workerName) existingWorkerNames.add(e.workerName.trim().toLowerCase());
+    if (e.mobileNumber && e.mobileNumber.trim().length >= 5) existingWorkerPhones.add(e.mobileNumber.trim());
+  });
+
+  // Resolve worker details for each row
+  const workerDocCache = {};
+  const workerDocIds = [...new Set(workerRefs.map(String))];
+  if (workerDocIds.length > 0) {
+    const docs = await Worker.find({ _id: { $in: workerDocIds }, site, isDeleted: false })
+      .select('_id name phone profession dailyWage workerId');
+    docs.forEach((d) => { workerDocCache[d._id.toString()] = d; });
+  }
+
+  const duplicates = [];
+  const documentsToInsert = [];
+
+  for (const w of workers) {
+    const workerRef = w.worker || null;
+    let resolvedWorkerName = w.workerName || '';
+    let resolvedMobileNumber = w.mobileNumber || '';
+    let resolvedWage = Number(w.dailyWage ?? dailyWage) || 0;
+    let resolvedWorkerRef = null;
+    let resolvedProfession = w.profession || profession;
+
+    if (workerRef) {
+      const workerStr = workerRef.toString();
+      const wDoc = workerDocCache[workerStr];
+      if (wDoc) {
+        resolvedWorkerRef = wDoc._id;
+        resolvedWorkerName = w.workerName || wDoc.name;
+        resolvedMobileNumber = w.mobileNumber || wDoc.phone;
+        resolvedWage = Number(w.dailyWage) || wDoc.dailyWage;
+        resolvedProfession = w.profession || wDoc.profession;
+      }
+    }
+
+    const refStr = resolvedWorkerRef ? resolvedWorkerRef.toString() : workerRef ? workerRef.toString() : null;
+    const nameStr = (resolvedWorkerName || '').trim().toLowerCase();
+    const phoneStr = (resolvedMobileNumber || '').trim();
+
+    const isDup =
+      (refStr && existingWorkerAttendance.has(refStr)) ||
+      (nameStr && existingWorkerNames.has(nameStr)) ||
+      (phoneStr && phoneStr.length >= 5 && existingWorkerPhones.has(phoneStr));
+
+    if (isDup) {
+      duplicates.push(resolvedWorkerName || 'Worker');
+      continue; // skip duplicate
+    }
+
+    if (refStr) existingWorkerAttendance.add(refStr);
+    if (nameStr) existingWorkerNames.add(nameStr);
+    if (phoneStr && phoneStr.length >= 5) existingWorkerPhones.add(phoneStr);
+
     const workerStatus = w.status || 'present';
     const workerOtHours = Number(w.overtimeHours) || 0;
     const workerInTime = w.inTime || inTime;
     const workerOutTime = w.outTime || outTime;
     const hours = calculateWorkingHours(workerInTime, workerOutTime) || commonWorkingHours;
 
+    // Resolve profession name for this row
+    let rowProfName = profName;
+    if (resolvedProfession && resolvedProfession.toString() !== profession.toString()) {
+      const rowProfDoc = await Profession.findById(resolvedProfession);
+      if (rowProfDoc) rowProfName = rowProfDoc.name;
+    }
+
     const { overtimeAmount, totalAmount, dailyLabourCost } = calculateFinancials(
       workerStatus,
-      workerWage,
+      resolvedWage,
       workerOtHours
     );
 
-    return {
+    documentsToInsert.push({
       site,
       date: attendanceDate,
+      worker: resolvedWorkerRef,
       contractor: contractorName,
-      profession,
-      professionName: profName,
-      workerName: w.workerName ? w.workerName.trim() : '',
-      mobileNumber: w.mobileNumber ? w.mobileNumber.trim() : '',
+      profession: resolvedProfession,
+      professionName: rowProfName,
+      workerName: resolvedWorkerName ? resolvedWorkerName.trim() : '',
+      mobileNumber: resolvedMobileNumber ? resolvedMobileNumber.trim() : '',
       gender: 'unspecified',
       inTime: workerInTime,
       outTime: workerOutTime,
       workingHours: hours,
       status: workerStatus,
-      dailyWage: workerWage,
+      dailyWage: resolvedWage,
       overtimeHours: workerOtHours,
       overtimeAmount,
       totalAmount,
       dailyLabourCost,
       remarks: w.remarks ? w.remarks.trim() : '',
       markedBy: actor._id,
-    };
-  });
+    });
+  }
+
+  if (duplicates.length > 0 && documentsToInsert.length === 0) {
+    throw ApiError.conflict(`All workers already have attendance for this date: ${duplicates.join(', ')}`);
+  }
+
+  if (documentsToInsert.length === 0) {
+    throw ApiError.badRequest('No valid worker entries to save (all were duplicates or invalid)');
+  }
 
   const inserted = await attendanceRepo.createMany(documentsToInsert);
 
@@ -196,10 +326,10 @@ async function recordBatchAttendance(payload, actor) {
     action: 'created',
     entityType: 'Attendance',
     entityId: inserted[0]?._id,
-    description: `Batch logged ${inserted.length} workers for profession "${profName}"`,
+    description: `Batch logged ${inserted.length} workers for profession "${profName}"${duplicates.length ? ` (${duplicates.length} skipped as duplicates)` : ''}`,
   });
 
-  return inserted;
+  return { inserted, skippedDuplicates: duplicates };
 }
 
 async function getAttendanceList(queryParams, actor) {
@@ -439,6 +569,49 @@ async function getContractors(queryParams, actor) {
   return attendanceRepo.getDistinctContractors(siteFilter);
 }
 
+/**
+ * Returns workers who had attendance on the most recent date before `date` for the same site.
+ * Used for the "Copy Previous Day" feature — read-only, never modifies any records.
+ */
+async function getPreviousDayWorkers(queryParams, actor) {
+  const { siteId, date } = queryParams;
+  const siteFilter = resolveSiteScope(actor, siteId);
+
+  if (!date) throw ApiError.badRequest('date is required');
+
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+
+  // Find the most recent attendance date strictly before targetDate for this site
+  const lastRecord = await Attendance.findOne({
+    ...siteFilter,
+    date: { $lt: targetDate },
+    isDeleted: false,
+  })
+    .sort({ date: -1 })
+    .select('date');
+
+  if (!lastRecord) return [];
+
+  const prevDate = new Date(lastRecord.date);
+  const prevStart = new Date(prevDate); prevStart.setHours(0, 0, 0, 0);
+  const prevEnd = new Date(prevDate); prevEnd.setHours(23, 59, 59, 999);
+
+  const records = await Attendance.find({
+    ...siteFilter,
+    date: { $gte: prevStart, $lte: prevEnd },
+    isDeleted: false,
+  })
+    .populate([
+      { path: 'profession', select: 'name _id' },
+      { path: 'worker', select: 'workerId name phone dailyWage status' },
+    ])
+    .select('worker workerName mobileNumber profession professionName dailyWage inTime outTime status date')
+    .sort({ workerName: 1 });
+
+  return records;
+}
+
 module.exports = {
   recordAttendance,
   recordBatchAttendance,
@@ -449,6 +622,7 @@ module.exports = {
   getAttendanceStats,
   getWeeklyReport,
   getContractors,
+  getPreviousDayWorkers,
   calculateWorkingHours,
   calculateFinancials,
 };

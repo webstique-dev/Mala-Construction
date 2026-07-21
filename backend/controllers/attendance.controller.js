@@ -7,8 +7,8 @@ const recordAttendance = asyncHandler(async (req, res) => {
 });
 
 const recordBatchAttendance = asyncHandler(async (req, res) => {
-  const records = await attendanceService.recordBatchAttendance(req.body, req.user);
-  res.status(201).json({ success: true, data: records });
+  const result = await attendanceService.recordBatchAttendance(req.body, req.user);
+  res.status(201).json({ success: true, data: result });
 });
 
 const listAttendance = asyncHandler(async (req, res) => {
@@ -46,6 +46,11 @@ const getContractors = asyncHandler(async (req, res) => {
   res.json({ success: true, data: list });
 });
 
+const getPreviousDayWorkers = asyncHandler(async (req, res) => {
+  const workers = await attendanceService.getPreviousDayWorkers(req.query, req.user);
+  res.json({ success: true, data: workers });
+});
+
 module.exports = {
   recordAttendance,
   recordBatchAttendance,
@@ -56,4 +61,5 @@ module.exports = {
   getAttendanceStats,
   getWeeklyReport,
   getContractors,
+  getPreviousDayWorkers,
 };

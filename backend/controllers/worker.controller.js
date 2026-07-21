@@ -11,6 +11,11 @@ const listWorkers = asyncHandler(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
+const searchWorkers = asyncHandler(async (req, res) => {
+  const results = await workerService.searchWorkers(req.query, req.user);
+  res.json({ success: true, data: results });
+});
+
 const getWorker = asyncHandler(async (req, res) => {
   const worker = await workerService.getWorkerById(req.params.id, req.user);
   res.json({ success: true, data: worker });
@@ -36,4 +41,4 @@ const restoreWorker = asyncHandler(async (req, res) => {
   res.json({ success: true, data: worker });
 });
 
-module.exports = { createWorker, listWorkers, getWorker, getWorkerProfile, updateWorker, deleteWorker, restoreWorker };
+module.exports = { createWorker, listWorkers, searchWorkers, getWorker, getWorkerProfile, updateWorker, deleteWorker, restoreWorker };

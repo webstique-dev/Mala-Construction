@@ -17,6 +17,8 @@ router.use(authenticate, authorize('super_admin', 'site_admin'));
 
 router.post('/', imageUpload.single('photo'), validate({ body: createWorkerSchema }), workerController.createWorker);
 router.get('/', validate({ query: listWorkersQuerySchema }), workerController.listWorkers);
+// IMPORTANT: /search must be before /:id to avoid collision
+router.get('/search', workerController.searchWorkers);
 router.get('/:id/profile', validate({ params: idParamSchema }), workerController.getWorkerProfile);
 router.get('/:id', validate({ params: idParamSchema }), workerController.getWorker);
 router.put(

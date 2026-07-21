@@ -11,6 +11,8 @@ router.use(authenticate, authorize('super_admin', 'site_admin'));
 router.get('/stats', attendanceController.getAttendanceStats);
 router.get('/weekly-report', attendanceController.getWeeklyReport);
 router.get('/contractors', attendanceController.getContractors);
+// IMPORTANT: /previous-day-workers must be before /:id to avoid collision
+router.get('/previous-day-workers', attendanceController.getPreviousDayWorkers);
 router.post('/batch', attendanceController.recordBatchAttendance);
 router.post('/', documentUpload.single('attachment'), attendanceController.recordAttendance);
 router.get('/', attendanceController.listAttendance);
@@ -19,3 +21,4 @@ router.put('/:id', documentUpload.single('attachment'), attendanceController.upd
 router.delete('/:id', attendanceController.deleteAttendance);
 
 module.exports = router;
+

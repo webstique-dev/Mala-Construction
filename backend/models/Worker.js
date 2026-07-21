@@ -3,6 +3,12 @@ const mongoose = require('mongoose');
 const workerSchema = new mongoose.Schema(
   {
     site: { type: mongoose.Schema.Types.ObjectId, ref: 'Site', required: true, index: true },
+    /**
+     * Human-readable site-prefixed Worker ID, e.g. "MCH-0001".
+     * Auto-generated in workerService.createWorker using the site's code.
+     * Unique per site; sparse so existing records without it are unaffected.
+     */
+    workerId: { type: String, trim: true, index: true },
     photo: {
       url: { type: String, default: null },
       publicId: { type: String, default: null },
@@ -28,5 +34,7 @@ const workerSchema = new mongoose.Schema(
 
 workerSchema.index({ site: 1, status: 1 });
 workerSchema.index({ name: 'text', phone: 'text' });
+// Unique workerId per site; sparse so legacy records without workerId are not rejected
+workerSchema.index({ site: 1, workerId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Worker', workerSchema);

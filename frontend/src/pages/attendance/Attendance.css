@@ -548,7 +548,7 @@
   gap: var(--space-xs, 8px);
 }
 
-.shift-hours-flex > * {
+.shift-hours-flex>* {
   flex: 1;
 }
 
@@ -565,5 +565,628 @@
 @media (min-width: 500px) and (max-width: 767px) {
   .accordion-card__details-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ========================================================
+   COPY PREVIOUS DAY BUTTON
+   ======================================================== */
+.copy-prev-btn {
+  border-style: dashed !important;
+  color: var(--color-primary-600) !important;
+  gap: 5px;
+}
+
+/* ========================================================
+   COPY PREVIOUS DAY MODAL
+   ======================================================== */
+.prev-day-modal__hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-sm);
+}
+
+.prev-day-modal__loading,
+.prev-day-modal__empty {
+  text-align: center;
+  padding: var(--space-xl) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.prev-day-modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.prev-day-select-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.prev-day-select-all-btn:hover {
+  background: var(--color-primary-50);
+}
+
+.prev-day-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.prev-day-worker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.prev-day-worker-item:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-50);
+}
+
+.prev-day-worker-item--checked {
+  border-color: var(--color-primary-400);
+  background: var(--color-primary-50);
+}
+
+.prev-day-worker-item--disabled {
+  opacity: 0.6;
+  background: var(--color-gray-50, #f8fafc);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+}
+
+.prev-day-worker-item--disabled:hover {
+  background: var(--color-gray-50, #f8fafc);
+  border-color: var(--color-border);
+}
+
+.prev-day-worker-item__added-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  background: var(--color-amber-100, #fef3c7);
+  color: var(--color-amber-800, #92400e);
+  padding: 1px 7px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+
+.prev-day-worker-checkbox {
+  flex-shrink: 0;
+  accent-color: var(--color-primary-500);
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.prev-day-worker-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.prev-day-worker-item__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+
+.prev-day-worker-item__id {
+  font-family: monospace;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.prev-day-worker-item__name {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.prev-day-worker-item__sub {
+  display: flex;
+  gap: 10px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  flex-wrap: wrap;
+}
+
+/* ========================================================
+   WORKER PICKER INPUT (WorkerPickerInput.jsx)
+   ======================================================== */
+.worker-picker-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.worker-picker-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.worker-picker-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.worker-picker-input {
+  padding-left: 30px !important;
+  width: 100%;
+}
+
+.worker-picker-spinner {
+  position: absolute;
+  right: 10px;
+  color: var(--color-primary-400);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.worker-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.worker-picker-empty {
+  padding: 12px 14px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.worker-picker-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+  transition: background 0.1s;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.worker-picker-item:last-child {
+  border-bottom: none;
+}
+
+.worker-picker-item:hover:not(:disabled) {
+  background: var(--color-primary-50);
+}
+
+.worker-picker-item--duplicate {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.worker-picker-item__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worker-picker-item__id {
+  font-family: monospace;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.worker-picker-item__name {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.worker-picker-item__dup-badge {
+  font-size: 10px;
+  background: var(--color-warning-100);
+  color: var(--color-warning-700);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.worker-picker-item__sub {
+  display: flex;
+  gap: 10px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.worker-picker-item__wage {
+  font-weight: 500;
+}
+
+.worker-picker-item__phone {
+  color: var(--color-text-tertiary);
+}
+
+.worker-picker-create-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-primary-600);
+  background: var(--color-primary-50);
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-top: 1px solid var(--color-border);
+}
+
+.worker-picker-create-btn:hover {
+  background: var(--color-primary-100);
+}
+
+/* ========================================================
+   WORKER LINKED BADGE (shown in batch row after worker selected)
+   ======================================================== */
+.worker-linked-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+  border-radius: var(--radius-md);
+  width: 100%;
+  min-height: 38px;
+}
+
+.worker-linked-badge__id {
+  font-family: monospace;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary-700);
+  background: var(--color-primary-100);
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.worker-linked-badge__name {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-linked-badge__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 3px;
+  color: var(--color-text-secondary);
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+
+.worker-linked-badge__clear:hover {
+  background: var(--color-danger-100, #fee2e2);
+  color: var(--color-danger-600, #dc2626);
+}
+
+/* ========================================================
+   FAST DAILY CREW BATCH ENTRY - ATTENDANCE TABLE & TOOLBAR
+   ======================================================== */
+.batch-methods-toolbar {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-surface-subtle, var(--color-gray-50, #f8fafc));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.batch-methods-toolbar__search {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.batch-methods-toolbar__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  min-width: 320px;
+}
+
+.batch-methods-toolbar__actions>div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.batch-table-section {
+  margin-top: var(--space-md);
+}
+
+.batch-table-header {
+  margin-bottom: var(--space-xs);
+}
+
+.batch-table-wrapper {
+  /* border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); */
+  overflow-x: auto;
+  background: var(--color-surface);
+}
+
+.batch-empty-table-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-md);
+  text-align: center;
+}
+
+.batch-attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.batch-attendance-table th,
+.batch-attendance-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.batch-attendance-table th {
+  background: var(--color-surface-subtle, var(--color-gray-50, #f8fafc));
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.batch-attendance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.batch-attendance-table tbody tr:hover {
+  background: var(--color-gray-50, #f8fafc);
+}
+
+.batch-worker-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-worker-id-badge {
+  font-family: monospace;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary-700);
+  background: var(--color-primary-100);
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.batch-worker-name-text {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.read-only-text {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.wage-input {
+  width: 110px !important;
+  text-align: right;
+  font-weight: 600;
+}
+
+.row-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-steel-400);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.row-remove-btn:hover {
+  background: var(--color-danger-50, #fef2f2);
+  color: var(--color-danger-600, #dc2626);
+  border-color: var(--color-danger-200, #fecaca);
+}
+
+.confirm-worker-details-card {
+  padding: 10px 14px;
+  background: var(--color-surface-subtle, var(--color-gray-50, #f8fafc));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-break: break-word;
+}
+
+.batch-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 8px);
+  padding: 8px;
+}
+
+.w-full-mobile {
+  width: 100% !important;
+}
+
+/* ========================================================
+   RESPONSIVE MEDIA QUERIES FOR FAST CREW BATCH ENTRY
+   ======================================================== */
+@media (max-width: 768px) {
+  .batch-methods-toolbar {
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .batch-methods-toolbar__search {
+    min-width: 100%;
+  }
+
+  .batch-methods-toolbar__actions {
+    min-width: 100%;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .batch-worker-name-cell {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .batch-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .batch-footer-bar__actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .batch-footer-bar__actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .batch-methods-toolbar__actions {
+    grid-template-columns: 1fr;
+  }
+
+  /* .prev-day-modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+  } */
+
+  .prev-day-select-all-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 375px) {
+  .batch-footer-bar__actions {
+    flex-direction: column;
+  }
+
+  .batch-footer-bar__actions button {
+    width: 100%;
+  }
+
+  .wage-input {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 320px) {
+  .batch-methods-toolbar {
+    padding: 8px;
+  }
+
+  .prev-day-worker-item {
+    padding: 8px 10px;
+  }
+
+  .prev-day-worker-item__main {
+    gap: 4px;
+  }
+
+  .prev-day-worker-item__name {
+    font-size: var(--font-size-xs);
   }
 }

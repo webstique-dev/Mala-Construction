@@ -4,6 +4,12 @@ const attendanceSchema = new mongoose.Schema(
   {
     site: { type: mongoose.Schema.Types.ObjectId, ref: 'Site', required: true, index: true },
     date: { type: Date, required: true, index: true },
+    /**
+     * Optional reference to the Worker Master record.
+     * When populated, enables strict duplicate prevention (one record per worker per site per date).
+     * Null for anonymous/legacy entries where worker was not selected from master.
+     */
+    worker: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker', default: null, index: true },
     contractor: { type: String, trim: true, default: 'Direct / In-House', index: true },
     profession: { type: mongoose.Schema.Types.ObjectId, ref: 'Profession', required: true, index: true },
     professionName: { type: String, trim: true, default: '' },
@@ -35,6 +41,11 @@ const attendanceSchema = new mongoose.Schema(
 attendanceSchema.index({ site: 1, date: -1 });
 attendanceSchema.index({ site: 1, contractor: 1, date: -1 });
 attendanceSchema.index({ site: 1, profession: 1, date: -1 });
+// Prevent duplicate: one attendance record per Worker Master entry per site per date.
+// Sparse so null-worker (anonymous) records are excluded from this constraint.
+attendanceSchema.index({ site: 1, date: 1, worker: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);
+
+
 

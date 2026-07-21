@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, User, RotateCcw, Search, ChevronLeft, ChevronRight, Inbox, Phone, Briefcase, Calendar, DollarSign, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, User, Users, RotateCcw, Search, ChevronLeft, ChevronRight, Inbox, Phone, Briefcase, Calendar, DollarSign, MapPin } from 'lucide-react';
 import Button from '../../components/common/Button';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
 import WorkerFormModal from './WorkerFormModal';
@@ -15,6 +15,7 @@ import Card from '../../components/ui/Card';
 import { motion } from 'framer-motion';
 import '../../styles/operational-page.css';
 import '../sites/Sites.css';
+import './WorkerProfile.css';
 
 import { GridCardSkeleton } from '../../components/ui/Skeleton';
 
@@ -30,13 +31,30 @@ export default function Workers() {
   const [confirmTarget, setConfirmTarget] = useState(null); // { type: 'delete' | 'restore', worker }
 
   const { isSuperAdmin, siteId } = useSiteScope(siteFilter || undefined);
+  const activeSiteId = isSuperAdmin ? siteFilter || undefined : siteId;
   const debouncedSearch = useDebouncedValue(search);
-  const { professions, activeSites } = useLookups(siteId);
+  const { professions, activeSites } = useLookups(activeSiteId);
+  const selectedSite = activeSites.data?.find((s) => s._id === activeSiteId);
+  const selectedProfession = professions.data?.find((p) => p._id === professionFilter);
+
+  const totalWorkersQuery = useWorkers({
+    siteId: activeSiteId,
+    limit: 1,
+  });
+  const totalWorkersCount = totalWorkersQuery.data?.total ?? 0;
+
+  const professionWorkersQuery = useWorkers({
+    siteId: activeSiteId,
+    profession: professionFilter || undefined,
+    limit: 1,
+  });
+  const professionWorkersCount = professionWorkersQuery.data?.total ?? 0;
+
   const { data, isLoading, isError, isFetching } = useWorkers({
     page,
     limit: 9,
     search: debouncedSearch || undefined,
-    siteId: isSuperAdmin ? siteFilter || undefined : siteId,
+    siteId: activeSiteId,
     profession: professionFilter || undefined,
     status: statusFilter || undefined,
     showDeleted,
@@ -112,6 +130,30 @@ export default function Workers() {
         </Button>
       </div>
 
+      <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)' }}>
+        <Card className="worker-kpi-card">
+          <div className="worker-kpi-card__header">
+            <span>{selectedSite ? `Total Workers (${selectedSite.name})` : 'Total Workers (All Sites)'}</span>
+            <Users size={18} className="worker-kpi-card__icon" />
+          </div>
+          <h3>{totalWorkersQuery.isLoading ? '...' : totalWorkersCount}</h3>
+        </Card>
+
+        {selectedProfession && (
+          <Card className="worker-kpi-card">
+            <div className="worker-kpi-card__header">
+              <span>
+                {selectedSite
+                  ? `Total ${selectedProfession.name} (${selectedSite.name})`
+                  : `Total ${selectedProfession.name} (All Sites)`}
+              </span>
+              <Briefcase size={18} className="worker-kpi-card__icon" style={{ color: 'var(--color-success-600, #16a34a)' }} />
+            </div>
+            <h3>{professionWorkersQuery.isLoading ? '...' : professionWorkersCount}</h3>
+          </Card>
+        )}
+      </div>
+
       <FilterToolbar
         search={search}
         onSearchChange={(v) => { setSearch(v); setPage(1); }}
@@ -175,9 +217,16 @@ export default function Workers() {
                           </Link>
                         )}
                       </h3>
-                      <span className="site-card__code" style={{ textTransform: 'capitalize' }}>
-                        {w.profession?.name || 'Worker'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span className="site-card__code" style={{ textTransform: 'capitalize' }}>
+                          {w.profession?.name || 'Worker'}
+                        </span>
+                        {w.workerId && (
+                          <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', background: 'var(--color-primary-50)', color: 'var(--color-primary-700)', border: '1px solid var(--color-primary-200)', borderRadius: 4, padding: '1px 6px', fontWeight: 600 }}>
+                            {w.workerId}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {w.isDeleted ? (
                       <span className="status-badge status-badge--suspended">Deleted</span>

@@ -33,7 +33,8 @@ export const router = createBrowserRouter([
         children: [
           { path: '/dashboard', element: <Dashboard /> },
           { path: '/materials', element: <Materials /> },
-          { path: '/workers', element: <Navigate to="/attendance" replace /> },
+          { path: '/workers', element: <Workers /> },
+          { path: '/workers/:id', element: <WorkerProfile /> },
           { path: '/attendance', element: <Attendance /> },
           { path: '/payments', element: <Payments /> },
           { path: '/expenses', element: <Expenses /> },

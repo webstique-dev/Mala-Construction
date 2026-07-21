@@ -103,7 +103,7 @@ export default function Sites() {
     // { key: 'createdTo', label: 'Created To', type: 'date', value: filters.createdTo, onChange: (val) => updateFilter('createdTo', val) },
     // { key: 'lastUpdatedFrom', label: 'Updated From', type: 'date', value: filters.lastUpdatedFrom, onChange: (val) => updateFilter('lastUpdatedFrom', val) },
     // { key: 'lastUpdatedTo', label: 'Updated To', type: 'date', value: filters.lastUpdatedTo, onChange: (val) => updateFilter('lastUpdatedTo', val) },
-    { key: 'siteName', label: 'Site Name', type: 'text', value: filters.siteName, onChange: (val) => updateFilter('siteName', val), placeholder: 'Filter by name' },
+    // { key: 'siteName', label: 'Site Name', type: 'text', value: filters.siteName, onChange: (val) => updateFilter('siteName', val), placeholder: 'Filter by name' },
     // { key: 'siteCode', label: 'Site Code', type: 'text', value: filters.siteCode, onChange: (val) => updateFilter('siteCode', val), placeholder: 'Filter by code' },
     { key: 'status', label: 'Status', type: 'select', value: filters.status, onChange: (val) => updateFilter('status', val), options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'completed', label: 'Completed' }, { value: 'archived', label: 'Archived' }] },
     // { key: 'country', label: 'Country', type: 'text', value: filters.country, onChange: (val) => updateFilter('country', val), placeholder: 'Country' },

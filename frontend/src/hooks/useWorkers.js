@@ -10,6 +10,20 @@ export function useWorkers(params) {
   });
 }
 
+/**
+ * Lightweight worker search for the Attendance worker picker.
+ * Enabled only when `enabled` is true and `query` has content.
+ */
+export function useWorkerSearch(query, siteId, enabled = true) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.WORKERS, 'search', { q: query, siteId }],
+    queryFn: () => workerService.search({ q: query, siteId, limit: 8 }),
+    enabled: enabled && query.trim().length >= 1,
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+  });
+}
+
 export function useWorkerProfile(id) {
   return useQuery({
     queryKey: [QUERY_KEYS.WORKERS, 'profile', id],

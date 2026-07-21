@@ -20,7 +20,7 @@ const DEFAULTS = {
   address: '', emergencyContactName: '', emergencyContactPhone: '', status: 'active',
 };
 
-export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId }) {
+export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId, onCreated }) {
   const isEdit = !!worker;
   const [photoFile, setPhotoFile] = useState(null);
   const { isSuperAdmin } = useSiteScope();
@@ -54,11 +54,17 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
       if (isEdit) {
         await updateWorker.mutateAsync({ id: worker._id, payload, photoFile });
         toast.success('Worker updated.');
+        onClose();
       } else {
-        await createWorker.mutateAsync({ payload, photoFile });
+        const result = await createWorker.mutateAsync({ payload, photoFile });
         toast.success('Worker added.');
+        // If caller wants the newly created worker (e.g. WorkerPickerInput), call onCreated
+        if (onCreated && result?.data) {
+          onCreated(result.data);
+        } else {
+          onClose();
+        }
       }
-      onClose();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Something went wrong.');
     }
@@ -69,6 +75,14 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
       footer={<><Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancel</Button><Button onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>{isEdit ? 'Save' : 'Add worker'}</Button></>}>
       <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         <div className="form-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          {/* Worker ID display (read-only, shown only in edit mode) */}
+          {isEdit && worker?.workerId && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--color-primary-50)', border: '1px solid var(--color-primary-200)', borderRadius: 'var(--radius-md)' }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Worker ID</span>
+              <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-primary-700)' }}>{worker.workerId}</span>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginLeft: 'auto' }}>Auto-generated · Read only</span>
+            </div>
+          )}
           {isSuperAdmin && (
             <FormField label="Site" required error={errors.site?.message} className="form-field--full">
               <select className="form-select" {...register('site', { required: true })} disabled={isEdit}>

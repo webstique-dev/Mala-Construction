@@ -136,6 +136,7 @@ export default function FilterToolbar({
                 type="search"
                 placeholder={searchPlaceholder}
                 value={search}
+                style={{ outline: 'none' }}
                 onChange={(e) => onSearchChange(e.target.value)}
                 aria-label="Search"
               />

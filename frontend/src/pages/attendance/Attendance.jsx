@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Users,
   DollarSign,
@@ -21,16 +21,23 @@ import {
   Printer,
   X,
   XCircle,
+  Copy,
+  CheckSquare,
+  Square,
+  UserPlus,
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import DatePickerInput from '../../components/ui/DatePickerInput';
 import TimePickerInput from '../../components/ui/TimePickerInput';
 import Card from '../../components/ui/Card';
+import Modal from '../../components/modals/Modal';
 import { CardSkeleton, TableSkeleton } from '../../components/ui/Skeleton';
 import AccordionCard from '../../components/ui/AccordionCard';
 import Drawer from '../../components/drawers/Drawer';
 import { ImageThumbnail } from '../../components/common/ImagePreviewModal';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
+import WorkerPickerInput from '../../components/forms/WorkerPickerInput';
+import WorkerFormModal from '../../pages/workers/WorkerFormModal';
 import { useSiteScope } from '../../hooks/useSiteScope';
 import { useLookups } from '../../hooks/useLookups';
 import {
@@ -41,6 +48,7 @@ import {
   useBatchRecordAttendance,
   useUpdateAttendance,
   useDeleteAttendance,
+  usePreviousDayWorkers,
 } from '../../hooks/useAttendance';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -71,7 +79,7 @@ export default function Attendance() {
 
   // Filters
   const [siteFilter, setSiteFilter] = useState('');
-  const [period, setPeriod] = useState('today');
+  const [period, setPeriod] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [professionFilter, setProfessionFilter] = useState('');
@@ -121,10 +129,25 @@ export default function Attendance() {
     outTime: '18:00',
   });
   const [batchRows, setBatchRows] = useState([
-    { id: 1, workerName: '', mobileNumber: '', status: 'present' },
-    { id: 2, workerName: '', mobileNumber: '', status: 'present' },
-    { id: 3, workerName: '', mobileNumber: '', status: 'present' },
+    { id: 1, worker: null, workerName: '', mobileNumber: '', status: 'present' },
+    { id: 2, worker: null, workerName: '', mobileNumber: '', status: 'present' },
+    { id: 3, worker: null, workerName: '', mobileNumber: '', status: 'present' },
   ]);
+
+  // Copy Previous Day state
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [copyFetchEnabled, setCopyFetchEnabled] = useState(false);
+  const [selectedPrevWorkers, setSelectedPrevWorkers] = useState(new Set());
+  const prevDayQuery = usePreviousDayWorkers(
+    { siteId: batchHeader.site, date: batchHeader.date },
+    copyFetchEnabled
+  );
+
+  // Create Worker from Batch Drawer state
+  const [isCreateWorkerModalOpen, setIsCreateWorkerModalOpen] = useState(false);
+
+  // Row removal confirmation target
+  const [rowToRemoveTarget, setRowToRemoveTarget] = useState(null);
 
   // Single / Edit Drawer State
   const [isSingleOpen, setIsSingleOpen] = useState(false);
@@ -162,17 +185,15 @@ export default function Attendance() {
       inTime: '09:00',
       outTime: '18:00',
     });
-    setBatchRows([
-      { id: Date.now() + 1, workerName: '', mobileNumber: '', status: 'present' },
-      { id: Date.now() + 2, workerName: '', mobileNumber: '', status: 'present' },
-      { id: Date.now() + 3, workerName: '', mobileNumber: '', status: 'present' },
-    ]);
+    setBatchRows([]); // Starts empty; workers added via Master, Prev Day, or Create Worker
+    setCopyFetchEnabled(false);
     setIsBatchOpen(true);
   };
 
   const handleAddBatchRow = (count = 1) => {
     const newRows = Array.from({ length: count }).map((_, i) => ({
       id: Date.now() + i,
+      worker: null,
       workerName: '',
       mobileNumber: '',
       status: 'present',
@@ -180,13 +201,170 @@ export default function Attendance() {
     setBatchRows((prev) => [...prev, ...newRows]);
   };
 
-  const handleRemoveBatchRow = (id) => {
-    if (batchRows.length <= 1) {
-      toast.warning('At least one worker row is required.');
+  // Helper: check duplicate worker by Mongo _id, Worker ID code, name, or phone number
+  const isWorkerDuplicate = useCallback((candidate, rows = batchRows) => {
+    if (!candidate || !Array.isArray(rows) || rows.length === 0) return false;
+
+    const candId = candidate._id?.toString() || (typeof candidate.worker === 'string' ? candidate.worker : candidate.worker?._id?.toString());
+    const candCode = candidate.workerId?.toString() || candidate._workerId?.toString() || candidate.worker?.workerId?.toString();
+    const candName = (candidate.name || candidate.workerName || candidate.worker?.name || '').trim().toLowerCase();
+    const candPhone = (candidate.phone || candidate.mobileNumber || candidate.worker?.phone || '').trim();
+
+    return rows.some((r) => {
+      const rId = r.worker?.toString();
+      const rCode = r._workerId?.toString();
+      const rName = (r.workerName || '').trim().toLowerCase();
+      const rPhone = (r.mobileNumber || '').trim();
+
+      if (candId && rId && candId === rId) return true;
+      if (candCode && rCode && candCode === rCode) return true;
+      if (candName && rName && candName === rName) return true;
+      if (candPhone && rPhone && candPhone.length >= 5 && candPhone === rPhone) return true;
+
+      return false;
+    });
+  }, [batchRows]);
+
+  // Method 1: Add Existing Worker from Worker Master
+  const handleAddWorkerFromMaster = useCallback((workerDoc) => {
+    if (!workerDoc) return;
+
+    if (isWorkerDuplicate(workerDoc)) {
+      toast.warning("This worker has already been added to today's attendance.");
       return;
     }
-    setBatchRows((prev) => prev.filter((r) => r.id !== id));
+
+    const profId = workerDoc.profession?._id || workerDoc.profession;
+    const profObj = professions.data?.find((p) => p._id === profId);
+    const profName = workerDoc.profession?.name || profObj?.name || '—';
+
+    const newRow = {
+      id: Date.now() + Math.random(),
+      worker: workerDoc._id,
+      workerName: workerDoc.name,
+      mobileNumber: workerDoc.phone || '',
+      profession: profId || batchHeader.profession,
+      professionName: profName,
+      dailyWage: workerDoc.dailyWage ?? Number(batchHeader.dailyWage) ?? 750,
+      status: 'present',
+      _workerId: workerDoc.workerId,
+    };
+
+    setBatchRows((prev) => [...prev, newRow]);
+    toast.success(`Added "${workerDoc.name}" (${workerDoc.workerId || 'Worker'}) to attendance table.`);
+  }, [isWorkerDuplicate, batchHeader.dailyWage, batchHeader.profession, professions.data, toast]);
+
+  // Method 2: Copy Previous Day
+  const handleCopyPreviousDay = () => {
+    if (!batchHeader.site) {
+      toast.error('Please select a project site first.');
+      return;
+    }
+    setCopyFetchEnabled(true);
+    setIsCopyModalOpen(true);
+    setSelectedPrevWorkers(new Set());
   };
+
+  const handleConfirmCopy = () => {
+    const prevWorkers = prevDayQuery.data || [];
+    const toAdd = prevWorkers.filter((pw) => selectedPrevWorkers.has(pw._id || pw.worker?._id || pw.workerName));
+    if (toAdd.length === 0) {
+      toast.warning('No workers selected to copy.');
+      return;
+    }
+
+    let addedCount = 0;
+    let dupCount = 0;
+    const newRows = [];
+
+    toAdd.forEach((pw, i) => {
+      if (isWorkerDuplicate(pw)) {
+        dupCount++;
+        return;
+      }
+      const profId = pw.profession?._id || pw.profession || batchHeader.profession;
+      const profObj = professions.data?.find((p) => p._id === profId);
+      const profName = pw.professionName || pw.profession?.name || profObj?.name || '—';
+
+      newRows.push({
+        id: Date.now() + i + Math.random(),
+        worker: pw.worker?._id || null,
+        workerName: pw.workerName || pw.worker?.name || '',
+        mobileNumber: pw.mobileNumber || pw.worker?.phone || '',
+        profession: profId,
+        professionName: profName,
+        dailyWage: pw.dailyWage || pw.worker?.dailyWage || Number(batchHeader.dailyWage) || 750,
+        status: pw.status === 'halfDay' ? 'halfDay' : 'present',
+        _workerId: pw.worker?.workerId,
+      });
+      addedCount++;
+    });
+
+    if (newRows.length > 0) {
+      setBatchRows((prev) => [...prev, ...newRows]);
+    }
+
+    setIsCopyModalOpen(false);
+    setCopyFetchEnabled(false);
+    if (dupCount > 0 && addedCount > 0) {
+      toast.info(`Added ${addedCount} worker(s). ${dupCount} duplicate worker(s) skipped.`);
+    } else if (dupCount > 0 && addedCount === 0) {
+      toast.warning(`Selected worker(s) are already in today's attendance table.`);
+    } else {
+      toast.success(`Added ${addedCount} worker(s) from previous day.`);
+    }
+  };
+
+  // Method 3: Worker Created from Batch Drawer
+  const handleWorkerCreatedFromBatch = (newWorker) => {
+    setIsCreateWorkerModalOpen(false);
+    if (!newWorker) return;
+
+    if (isWorkerDuplicate(newWorker)) {
+      toast.warning("This worker has already been added to today's attendance.");
+      return;
+    }
+
+    const profId = newWorker.profession?._id || newWorker.profession;
+    const profObj = professions.data?.find((p) => p._id === profId);
+    const profName = newWorker.profession?.name || profObj?.name || '—';
+
+    const newRow = {
+      id: Date.now() + Math.random(),
+      worker: newWorker._id,
+      workerName: newWorker.name,
+      mobileNumber: newWorker.phone || '',
+      profession: profId || batchHeader.profession,
+      professionName: profName,
+      dailyWage: newWorker.dailyWage ?? Number(batchHeader.dailyWage) ?? 750,
+      status: 'present',
+      _workerId: newWorker.workerId,
+    };
+
+    setBatchRows((prev) => [...prev, newRow]);
+    toast.success(`Worker "${newWorker.name}" created and added to today's attendance table.`);
+  };
+
+  // Toggle selection of a previous-day worker in the copy modal
+  const togglePrevWorker = (key) => {
+    setSelectedPrevWorkers((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  // Set of currently selected worker IDs / names / phones (for duplicate detection in picker)
+  const selectedWorkerIds = useMemo(() => {
+    const set = new Set();
+    batchRows.forEach((r) => {
+      if (r.worker) set.add(r.worker.toString());
+      if (r._workerId) set.add(r._workerId.toString());
+      if (r.workerName) set.add(r.workerName.trim().toLowerCase());
+      if (r.mobileNumber && r.mobileNumber.trim().length >= 5) set.add(r.mobileNumber.trim());
+    });
+    return set;
+  }, [batchRows]);
 
   const handleBatchRowChange = (id, field, value) => {
     setBatchRows((prev) =>
@@ -194,34 +372,54 @@ export default function Attendance() {
     );
   };
 
+  // Total Crew Daily Cost dynamically calculated strictly from current batchRows
   const batchTotalCost = useMemo(() => {
     return batchRows.reduce((sum, r) => {
-      return sum + calculateRowCost(r.status, batchHeader.dailyWage);
+      return sum + calculateRowCost(r.status, r.dailyWage);
     }, 0);
-  }, [batchHeader.dailyWage, batchRows]);
+  }, [batchRows]);
 
   const handleBatchSubmit = async (e) => {
     e.preventDefault();
     if (!batchHeader.site) return toast.error('Please select a project site.');
-    if (!batchHeader.profession) return toast.error('Please select a profession.');
+    if (batchRows.length === 0) return toast.error('Please add at least one worker to the attendance table.');
+
+    // Frontend duplicate check: same worker in multiple rows
+    const workerIdsSeen = new Set();
+    for (const r of batchRows) {
+      if (r.worker) {
+        if (workerIdsSeen.has(r.worker.toString())) {
+          return toast.error(`Worker "${r.workerName}" appears more than once in the list.`);
+        }
+        workerIdsSeen.add(r.worker.toString());
+      }
+    }
 
     try {
       const payload = {
         site: batchHeader.site,
         date: batchHeader.date,
-        profession: batchHeader.profession,
+        profession: batchHeader.profession || batchRows[0]?.profession || professions.data?.[0]?._id,
         dailyWage: Number(batchHeader.dailyWage) || 0,
         inTime: batchHeader.inTime,
         outTime: batchHeader.outTime,
         workers: batchRows.map((r) => ({
+          worker: r.worker || undefined,
           workerName: r.workerName,
           mobileNumber: r.mobileNumber,
+          profession: r.profession || undefined,
+          dailyWage: Number(r.dailyWage) || 0,
           status: r.status,
         })),
       };
 
-      await recordBatchMutation.mutateAsync(payload);
-      toast.success('Workers added successfully.');
+      const result = await recordBatchMutation.mutateAsync(payload);
+      const skipped = result?.data?.skippedDuplicates || [];
+      if (skipped.length > 0) {
+        toast.warning(`Saved. Skipped ${skipped.length} duplicate worker(s): ${skipped.join(', ')}`);
+      } else {
+        toast.success(`Saved attendance for ${batchRows.length} worker(s).`);
+      }
       setIsBatchOpen(false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to record batch entry.');
@@ -323,7 +521,7 @@ export default function Attendance() {
 
   const handleResetFilters = () => {
     setSiteFilter('');
-    setPeriod('today');
+    setPeriod('all');
     setStartDate('');
     setEndDate('');
     setProfessionFilter('');
@@ -347,11 +545,11 @@ export default function Attendance() {
           <p>Log daily workers, compute wages, and monitor labour expenses.</p>
         </div>
         <div className="attendance-page__header-actions">
-          <Button variant="secondary" onClick={handleOpenSingle}>
+          {/* <Button variant="secondary" onClick={handleOpenSingle}>
             <Plus size={16} /> Single Worker Entry
-          </Button>
+          </Button> */}
           <Button onClick={handleOpenBatch}>
-            <Layers size={18} /> Fast Crew Batch Entry
+            <Layers size={18} />Crew Batch Entry
           </Button>
         </div>
       </div>
@@ -454,10 +652,10 @@ export default function Attendance() {
                     value={period}
                     onChange={(e) => { setPeriod(e.target.value); setPage(1); }}
                   >
+                    <option value="all">All Dates</option>
                     <option value="today">Today</option>
                     <option value="week">This Week</option>
                     <option value="month">This Month</option>
-                    <option value="all">All Dates</option>
                     <option value="custom">Custom Range</option>
                   </select>
                 </div>
@@ -864,134 +1062,297 @@ export default function Attendance() {
       <Drawer
         isOpen={isBatchOpen}
         onClose={() => setIsBatchOpen(false)}
-        title="Fast Daily Crew Batch Entry"
+        title="Daily Crew Batch Entry"
         size="lg"
       >
         <form onSubmit={handleBatchSubmit} className="form-drawer-container">
-          <div className="batch-entry-header-box">
-            <div>
-              <label className="form-field-label-bold">Project Site *</label>
-              <select
-                className="form-select"
-                value={batchHeader.site}
-                onChange={(e) => setBatchHeader((prev) => ({ ...prev, site: e.target.value }))}
-                required
-                disabled={!isSuperAdmin && Boolean(siteId)}
-              >
-                {isSuperAdmin && <option value="">Select Site</option>}
-                {availableSites.map((s) => (
-                  <option key={s._id} value={s._id}>{s.name} ({s.code})</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="form-field-label-bold">Attendance Date *</label>
-              <DatePickerInput
-                value={batchHeader.date}
-                onChange={(val) => setBatchHeader((prev) => ({ ...prev, date: val }))}
-              />
-            </div>
-
-            <div>
-              <label className="form-field-label-bold">Trade / Profession *</label>
-              <select
-                className="form-select"
-                value={batchHeader.profession}
-                onChange={(e) => setBatchHeader((prev) => ({ ...prev, profession: e.target.value }))}
-                required
-              >
-                <option value="">Select Profession</option>
-                {professions.data?.map((p) => (
-                  <option key={p._id} value={p._id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="form-field-label-bold">Default Daily Wage (₹) *</label>
-              <input
-                type="number"
-                min="0"
-                className="form-input"
-                value={batchHeader.dailyWage}
-                onChange={(e) => setBatchHeader((prev) => ({ ...prev, dailyWage: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="batch-entry-header-box__shift">
-              <label className="form-field-label-bold">Shift Hours</label>
-              <div className="shift-hours-flex">
-                <TimePickerInput
-                  value={batchHeader.inTime}
-                  onChange={(e) => setBatchHeader((prev) => ({ ...prev, inTime: e.target.value }))}
-                  placeholder="In Time"
-                  ariaLabel="Shift In Time"
-                />
-                <TimePickerInput
-                  value={batchHeader.outTime}
-                  onChange={(e) => setBatchHeader((prev) => ({ ...prev, outTime: e.target.value }))}
-                  placeholder="Out Time"
-                  ariaLabel="Shift Out Time"
-                  align="right"
-                />
-              </div>
-            </div>
+          {/* <div className="batch-entry-header-box">
+          <div>
+            <label className="form-field-label-bold">Project Site *</label>
+            <select
+              className="form-select"
+              value={batchHeader.site}
+              onChange={(e) => setBatchHeader((prev) => ({ ...prev, site: e.target.value }))}
+              required
+              disabled={!isSuperAdmin && Boolean(siteId)}
+            >
+              {isSuperAdmin && <option value="">Select Site</option>}
+              {availableSites.map((s) => (
+                <option key={s._id} value={s._id}>{s.name} ({s.code})</option>
+              ))}
+            </select>
           </div>
 
-          {/* Batch Crew Rows List */}
-          <div className="batch-list-header">
-            <h4 className="batch-list-title">
-              Crew Members ({batchRows.length} workers)
-            </h4>
-            <div className="flex-gap-8">
-              <Button type="button" variant="secondary" size="sm" onClick={() => handleAddBatchRow(1)}>
-                <Plus size={14} /> Add Worker
-              </Button>
-              <Button type="button" variant="secondary" size="sm" onClick={() => handleAddBatchRow(5)}>
-                +5 Workers
-              </Button>
-            </div>
+          <div>
+            <label className="form-field-label-bold">Attendance Date *</label>
+            <DatePickerInput
+              value={batchHeader.date}
+              onChange={(val) => setBatchHeader((prev) => ({ ...prev, date: val }))}
+            />
           </div>
 
-          <div className="batch-crew-grid">
-            {batchRows.map((row, idx) => (
-              <div key={row.id} className="batch-crew-row">
-                <input
-                  type="text"
-                  className="form-input batch-crew-row__full"
-                  placeholder={`Worker Name`}
-                  value={row.workerName}
-                  onChange={(e) => handleBatchRowChange(row.id, 'workerName', e.target.value)}
-                />
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Mobile"
-                  value={row.mobileNumber}
-                  onChange={(e) => handleBatchRowChange(row.id, 'mobileNumber', e.target.value)}
-                />
-                <select
-                  className="form-select"
-                  value={row.status}
-                  onChange={(e) => handleBatchRowChange(row.id, 'status', e.target.value)}
-                >
-                  <option value="present">Full Day</option>
-                  <option value="halfDay">Half Day</option>
-                </select>
-                <div className="row-cost-preview">
-                  ₹{calculateRowCost(row.status, batchHeader.dailyWage)}
-                </div>
-                <button
+          <div>
+            <label className="form-field-label-bold">Trade / Profession *</label>
+            <select
+              className="form-select"
+              value={batchHeader.profession}
+              onChange={(e) => setBatchHeader((prev) => ({ ...prev, profession: e.target.value }))}
+              required
+            >
+              <option value="">Select Profession</option>
+              {professions.data?.map((p) => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="form-field-label-bold">Default Daily Wage (₹) *</label>
+            <input
+              type="number"
+              min="0"
+              className="form-input"
+              value={batchHeader.dailyWage}
+              onChange={(e) => setBatchHeader((prev) => ({ ...prev, dailyWage: e.target.value }))}
+              required
+            />
+          </div>
+
+          <div className="batch-entry-header-box__shift">
+            <label className="form-field-label-bold">Shift Hours</label>
+            <div className="shift-hours-flex">
+              <TimePickerInput
+                value={batchHeader.inTime}
+                onChange={(e) => setBatchHeader((prev) => ({ ...prev, inTime: e.target.value }))}
+                placeholder="In Time"
+                ariaLabel="Shift In Time"
+              />
+              <TimePickerInput
+                value={batchHeader.outTime}
+                onChange={(e) => setBatchHeader((prev) => ({ ...prev, outTime: e.target.value }))}
+                placeholder="Out Time"
+                ariaLabel="Shift Out Time"
+                align="right"
+              />
+            </div>
+          </div>
+        </div> */}
+
+          <div className="fast-crew-date">
+            <span>Date: </span>
+            <strong>
+              {new Date().toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </strong>
+          </div>
+
+          {/* 3 Methods to Add Workers Toolbar */}
+          <div className="batch-methods-toolbar">
+            <div className="batch-methods-toolbar__search">
+              <label className="form-field-label-bold" style={{ fontSize: 'var(--font-size-xs)' }}>
+                Add Existing Worker from Master
+              </label>
+              <WorkerPickerInput
+                siteId={batchHeader.site}
+                onSelect={handleAddWorkerFromMaster}
+                existingIds={selectedWorkerIds}
+                placeholder="Search by Worker ID, name, or phone..."
+                disabled={!batchHeader.site}
+              />
+            </div>
+            <div className="batch-methods-toolbar__actions">
+              <div>
+                <label className="form-field-label-bold" style={{ fontSize: 'var(--font-size-xs)' }}>
+                  Previous Day
+                </label>
+                <Button
                   type="button"
-                  className="batch-crew-row__delete-btn delete-row-btn"
-                  onClick={() => handleRemoveBatchRow(row.id)}
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleCopyPreviousDay}
+                  disabled={!batchHeader.site}
+                  title="Select workers from previous day's attendance"
+                  className="copy-prev-btn"
+                  style={{ width: '100%', height: '38px' }}
                 >
-                  <X size={18} />
-                </button>
+                  <Copy size={14} /> Select from Previous Day
+                </Button>
               </div>
-            ))}
+              <div>
+                <label className="form-field-label-bold" style={{ fontSize: 'var(--font-size-xs)' }}>
+                  Create Worker
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsCreateWorkerModalOpen(true)}
+                  disabled={!batchHeader.site}
+                  title="Create a new worker and add to attendance"
+                  style={{ width: '100%', height: '38px' }}
+                >
+                  <UserPlus size={14} /> Create Worker
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Attendance Table */}
+          <div className="batch-table-section">
+            <div className="batch-table-header">
+              <h4 className="batch-list-title">
+                Today&apos;s Attendance Table ({batchRows.length} worker{batchRows.length !== 1 ? 's' : ''})
+              </h4>
+            </div>
+
+            <div className="batch-table-wrapper">
+              {batchRows.length === 0 ? (
+                <div className="batch-empty-table-state">
+                  <Users size={32} style={{ color: 'var(--color-steel-400)', marginBottom: 8 }} />
+                  <p style={{ fontWeight: 600, color: 'var(--color-text-primary)', margin: '0 0 4px' }}>
+                    No workers added to today&apos;s table yet
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    Use Master Search, Previous Day selection, or Create Worker above to add workers.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop Table View (>768px) */}
+                  <div className="desktop-only">
+                    <table className="batch-attendance-table">
+                      <thead>
+                        <tr>
+                          <th>Worker Name</th>
+                          <th>Mobile Number</th>
+                          <th>Profession</th>
+                          <th>Shift Status</th>
+                          <th>Daily Wage (₹)</th>
+                          <th className="text-right">Daily Cost</th>
+                          <th className="text-center">Remove</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batchRows.map((row) => (
+                          <tr key={row.id}>
+                            <td>
+                              <div className="batch-worker-name-cell">
+                                {row._workerId && <span className="batch-worker-id-badge">{row._workerId}</span>}
+                                <span className="batch-worker-name-text">{row.workerName}</span>
+                              </div>
+                            </td>
+                            <td className="read-only-text">{row.mobileNumber || '—'}</td>
+                            <td className="read-only-text">{row.professionName || '—'}</td>
+                            <td>
+                              <select
+                                className="form-select form-select--sm"
+                                value={row.status}
+                                onChange={(e) => handleBatchRowChange(row.id, 'status', e.target.value)}
+                              >
+                                <option value="present">Full Day</option>
+                                <option value="halfDay">Half Day</option>
+                              </select>
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                className="form-input form-input--sm wage-input"
+                                value={row.dailyWage}
+                                onChange={(e) => handleBatchRowChange(row.id, 'dailyWage', e.target.value)}
+                              />
+                            </td>
+                            <td className="text-right font-weight-bold">
+                              ₹{calculateRowCost(row.status, row.dailyWage).toLocaleString('en-IN')}
+                            </td>
+                            <td className="text-center">
+                              <button
+                                type="button"
+                                className="row-remove-btn"
+                                onClick={() => setRowToRemoveTarget(row)}
+                                title="Remove worker from attendance list"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile / Tablet Accordion View (<=768px) */}
+                  <div className="mobile-only">
+                    <div className="batch-accordion-list">
+                      {batchRows.map((row) => (
+                        <AccordionCard
+                          key={row.id}
+                          header={{
+                            title: (
+                              <div className="batch-worker-name-cell">
+                                {row._workerId && <span className="batch-worker-id-badge">{row._workerId}</span>}
+                                <span className="batch-worker-name-text">{row.workerName}</span>
+                              </div>
+                            ),
+                            category: row.professionName || '—',
+                            secondary: `₹${calculateRowCost(row.status, row.dailyWage).toLocaleString('en-IN')}`,
+                            status: (
+                              <span className={`status-pill status-pill--${row.status === 'halfDay' ? 'halfDay' : 'present'}`}>
+                                {row.status === 'halfDay' ? 'Half Day' : 'Full Day'}
+                              </span>
+                            ),
+                          }}
+                          details={[
+                            { label: 'Worker Name', value: <span className="read-only-text font-weight-bold">{row.workerName}</span> },
+                            { label: 'Mobile Number', value: <span className="read-only-text">{row.mobileNumber || '—'}</span> },
+                            { label: 'Profession', value: <span className="read-only-text">{row.professionName || '—'}</span> },
+                            {
+                              label: 'Shift Status',
+                              value: (
+                                <select
+                                  className="form-select form-select--sm"
+                                  value={row.status}
+                                  onChange={(e) => handleBatchRowChange(row.id, 'status', e.target.value)}
+                                >
+                                  <option value="present">Full Day</option>
+                                  <option value="halfDay">Half Day</option>
+                                </select>
+                              ),
+                            },
+                            {
+                              label: 'Daily Wage (₹)',
+                              value: (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="form-input form-input--sm wage-input"
+                                  value={row.dailyWage}
+                                  onChange={(e) => handleBatchRowChange(row.id, 'dailyWage', e.target.value)}
+                                />
+                              ),
+                            },
+                          ]}
+                          actions={
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setRowToRemoveTarget(row)}
+                              className="btn-danger-text w-full-mobile"
+                            >
+                              <Trash2 size={14} /> Remove Worker
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="batch-footer-bar">
@@ -1005,13 +1366,101 @@ export default function Attendance() {
               <Button type="button" variant="secondary" onClick={() => setIsBatchOpen(false)} disabled={recordBatchMutation.isPending}>
                 Cancel
               </Button>
-              <Button type="submit" isLoading={recordBatchMutation.isPending} disabled={recordBatchMutation.isPending}>
-                Save All {batchRows.length} Workers
+              <Button type="submit" isLoading={recordBatchMutation.isPending} disabled={recordBatchMutation.isPending || batchRows.length === 0}>
+                Save Attendance ({batchRows.length} Worker{batchRows.length !== 1 ? 's' : ''})
               </Button>
             </div>
           </div>
         </form>
       </Drawer>
+
+      {/* COPY PREVIOUS DAY WORKER SELECTION MODAL */}
+      <Modal
+        isOpen={isCopyModalOpen}
+        onClose={() => { setIsCopyModalOpen(false); setCopyFetchEnabled(false); }}
+        title="Copy Previous Day Attendance"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setIsCopyModalOpen(false); setCopyFetchEnabled(false); }}>Cancel</Button>
+            <Button
+              onClick={handleConfirmCopy}
+              disabled={selectedPrevWorkers.size === 0}
+            >
+              Populate {selectedPrevWorkers.size} Worker{selectedPrevWorkers.size !== 1 ? 's' : ''}
+            </Button>
+          </>
+        }
+      >
+        {prevDayQuery.isLoading ? (
+          <div className="prev-day-modal__loading">Fetching previous attendance&hellip;</div>
+        ) : !prevDayQuery.data || prevDayQuery.data.length === 0 ? (
+          <div className="prev-day-modal__empty">
+            No previous attendance records found for this site before the selected date.
+          </div>
+        ) : (
+          <>
+            <p className="prev-day-modal__hint">
+              Workers from the most recent attendance date ({formatDate(prevDayQuery.data?.[0]?.date)}).
+              Select who to copy into today&apos;s form.
+            </p>
+            <div className="prev-day-modal-actions">
+              <button
+                type="button"
+                className="prev-day-select-all-btn"
+                onClick={() => {
+                  const selectable = prevDayQuery.data.filter((pw) => !isWorkerDuplicate(pw));
+                  setSelectedPrevWorkers(new Set(selectable.map((pw) => pw._id || pw.worker?._id || pw.workerName)));
+                }}
+              >
+                <CheckSquare size={14} /> Select All
+              </button>
+              <button type="button" className="prev-day-select-all-btn" onClick={() => setSelectedPrevWorkers(new Set())}>
+                <Square size={14} /> Deselect All
+              </button>
+            </div>
+            <div className="prev-day-modal-list">
+              {prevDayQuery.data.map((pw) => {
+                const key = pw._id || pw.worker?._id || pw.workerName;
+                const isAlreadyInBatch = isWorkerDuplicate(pw);
+                const isChecked = selectedPrevWorkers.has(key) && !isAlreadyInBatch;
+
+                return (
+                  <label
+                    key={key}
+                    className={`prev-day-worker-item ${isAlreadyInBatch ? 'prev-day-worker-item--disabled' : isChecked ? 'prev-day-worker-item--checked' : ''}`}
+                    title={isAlreadyInBatch ? "This worker has already been added to today's attendance" : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={isAlreadyInBatch}
+                      onChange={() => !isAlreadyInBatch && togglePrevWorker(key)}
+                      className="prev-day-worker-checkbox"
+                    />
+                    <div className="prev-day-worker-item__info">
+                      <div className="prev-day-worker-item__main">
+                        {(pw.worker?.workerId || pw._workerId) && (
+                          <span className="prev-day-worker-item__id">{pw.worker?.workerId || pw._workerId}</span>
+                        )}
+                        <span className="prev-day-worker-item__name">{pw.workerName || pw.worker?.name}</span>
+                        {isAlreadyInBatch && (
+                          <span className="prev-day-worker-item__added-badge">Already Added</span>
+                        )}
+                      </div>
+                      <div className="prev-day-worker-item__sub">
+                        <span>{pw.professionName || pw.profession?.name || '—'}</span>
+                        <span>{formatCurrency(pw.dailyWage)}/day</span>
+                        {pw.mobileNumber && <span>{pw.mobileNumber}</span>}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Modal>
 
       {/* SINGLE WORKER ENTRY / EDIT DRAWER */}
       <Drawer
@@ -1162,6 +1611,49 @@ export default function Attendance() {
         cancelLabel="Cancel"
         isLoading={deleteMutation.isPending}
         danger
+      />
+
+      {/* Row Removal Confirmation Popup */}
+      <ConfirmDialog
+        isOpen={Boolean(rowToRemoveTarget)}
+        onClose={() => setRowToRemoveTarget(null)}
+        onConfirm={() => {
+          if (rowToRemoveTarget) {
+            setBatchRows((prev) => prev.filter((r) => r.id !== rowToRemoveTarget.id));
+            toast.success(`Removed "${rowToRemoveTarget.workerName}" from today's attendance table.`);
+            setRowToRemoveTarget(null);
+          }
+        }}
+        title="Confirm Worker Removal"
+        description={
+          rowToRemoveTarget ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+                Are you sure you want to remove this worker from today&apos;s attendance list?
+              </p>
+              <div className="confirm-worker-details-card">
+                <div><strong>Worker Name:</strong> {rowToRemoveTarget.workerName}</div>
+                <div><strong>Mobile Number:</strong> {rowToRemoveTarget.mobileNumber || 'N/A'}</div>
+                <div><strong>Profession:</strong> {rowToRemoveTarget.professionName || 'N/A'}</div>
+              </div>
+              <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
+                Note: This only removes the worker from the current unsaved attendance list. Worker Master records and historical attendance are not modified.
+              </p>
+            </div>
+          ) : 'Are you sure you want to remove this worker?'
+        }
+        confirmLabel="Remove Worker"
+        cancelLabel="Cancel"
+        danger
+      />
+
+      {/* Create Worker Modal from Batch Drawer */}
+      <WorkerFormModal
+        isOpen={isCreateWorkerModalOpen}
+        onClose={() => setIsCreateWorkerModalOpen(false)}
+        worker={null}
+        defaultSiteId={batchHeader.site || activeSiteId}
+        onCreated={handleWorkerCreatedFromBatch}
       />
     </div>
   );

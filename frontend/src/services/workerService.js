@@ -3,6 +3,7 @@ import { buildFormData } from '../utils/format';
 
 export const workerService = {
   list: (params) => apiClient.get('/workers', { params }).then((r) => r.data),
+  search: (params) => apiClient.get('/workers/search', { params }).then((r) => r.data.data),
   get: (id) => apiClient.get(`/workers/${id}`).then((r) => r.data.data),
   profile: (id) => apiClient.get(`/workers/${id}/profile`).then((r) => r.data.data),
   create: (payload, photoFile) =>
