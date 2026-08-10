@@ -43,16 +43,20 @@ const listMaterialsQuerySchema = z.object({
 
 const createWorkerSchema = z.object({
   site: objectId,
-  name: z.string().trim().min(2).max(150),
-  phone: z.string().trim().regex(/^\+[1-9]\d{1,14}$/, 'Invalid phone number (expect E.164 format, e.g. +919876543210)'),
+  name: z.string().trim().min(1).max(150),
+  phone: z.preprocess(
+    (val) => (val === '' || val === null ? undefined : val),
+    z.string().trim().optional()
+  ),
   profession: objectId,
   dailyWage: z.coerce.number().min(0),
-  joiningDate: z.coerce.date(),
+  workerCount: z.coerce.number().int().min(0).optional().default(1),
+  joiningDate: z.coerce.date().optional(),
   address: z.string().trim().max(500).optional(),
   emergencyContactName: z.string().trim().max(100).optional(),
   emergencyContactPhone: z.preprocess(
     (val) => (val === '' || val === null ? undefined : val),
-    z.string().trim().regex(/^\+[1-9]\d{1,14}$/, 'Invalid phone number (expect E.164 format, e.g. +919876543210)').optional()
+    z.string().trim().optional()
   ),
   status: z.enum(['active', 'inactive']).optional().default('active'),
 });

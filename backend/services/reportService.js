@@ -297,12 +297,12 @@ async function fetchReportData(queryParams, actor) {
     type: 'Labour Attendance',
     date: a.date,
     site: a.site?.name || 'Unknown',
-    description: `${a.workerName || a.worker?.name || 'Unnamed Worker'} (${a.profession?.name || 'Labour'}) [${a.inTime} - ${a.outTime}, ${a.workingHours}h]`,
-    category: a.profession?.name || 'Labour',
+    description: `${a.workerLeaderName || a.workerName || a.worker?.name || 'Worker Leader'} (${a.professionName || a.profession?.name || 'Trade'}) - ${a.workerCount || 0} Workers (@ Rs. ${a.dailyWage || 0}/day)`,
+    category: a.professionName || a.profession?.name || 'Labour Attendance',
     vendor: '—',
     paymentMethod: 'cash',
     amount: a.totalAmount || a.dailyLabourCost || 0,
-    status: a.status === 'halfDay' ? 'Half Day' : 'Full Day'
+    status: (a.workerCount || 0) > 0 ? 'Recorded' : 'Off / Absent'
   })));
 
   // Calculate summaries matching filtered data ONLY

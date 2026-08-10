@@ -16,7 +16,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { toInputDate } from '../../utils/format';
 
 const DEFAULTS = {
-  site: '', name: '', phone: '', profession: '', dailyWage: '', joiningDate: toInputDate(new Date()),
+  site: '', name: '', phone: '', profession: '', dailyWage: '', workerCount: 1, joiningDate: toInputDate(new Date()),
   address: '', emergencyContactName: '', emergencyContactPhone: '', status: 'active',
 };
 
@@ -36,29 +36,33 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
       setPhotoFile(null);
       reset(worker ? {
         site: worker.site?._id ?? worker.site,
-        name: worker.name, phone: worker.phone,
+        name: worker.name, phone: worker.phone ?? '',
         profession: worker.profession?._id ?? worker.profession,
         dailyWage: worker.dailyWage,
+        workerCount: worker.workerCount ?? 1,
         joiningDate: toInputDate(worker.joiningDate),
         address: worker.address ?? '',
         emergencyContactName: worker.emergencyContact?.name ?? '',
         emergencyContactPhone: worker.emergencyContact?.phone ?? '',
-        status: worker.status,
+        status: worker.status ?? 'active',
       } : { ...DEFAULTS, site: defaultSiteId ?? '' });
     }
   }, [isOpen, worker, defaultSiteId, reset]);
 
   const onSubmit = async (values) => {
     try {
-      const payload = { ...values, dailyWage: Number(values.dailyWage) };
+      const payload = {
+        ...values,
+        dailyWage: Number(values.dailyWage),
+        workerCount: Number(values.workerCount) >= 0 ? Number(values.workerCount) : 1,
+      };
       if (isEdit) {
         await updateWorker.mutateAsync({ id: worker._id, payload, photoFile });
-        toast.success('Worker updated.');
+        toast.success('Worker Leader updated.');
         onClose();
       } else {
         const result = await createWorker.mutateAsync({ payload, photoFile });
-        toast.success('Worker added.');
-        // If caller wants the newly created worker (e.g. WorkerPickerInput), call onCreated
+        toast.success('Worker Leader added.');
         if (onCreated && result?.data) {
           onCreated(result.data);
         } else {
@@ -71,14 +75,13 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
   };
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Worker' : 'Add Worker'} size="md"
-      footer={<><Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancel</Button><Button onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>{isEdit ? 'Save' : 'Add worker'}</Button></>}>
+    <Drawer isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Worker Leader' : 'Add Worker Leader'} size="md"
+      footer={<><Button variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancel</Button><Button onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>{isEdit ? 'Save Changes' : 'Add Worker Leader'}</Button></>}>
       <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         <div className="form-grid" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          {/* Worker ID display (read-only, shown only in edit mode) */}
           {isEdit && worker?.workerId && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--color-primary-50)', border: '1px solid var(--color-primary-200)', borderRadius: 'var(--radius-md)' }}>
-              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Worker ID</span>
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Leader ID</span>
               <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-primary-700)' }}>{worker.workerId}</span>
               <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginLeft: 'auto' }}>Auto-generated · Read only</span>
             </div>
@@ -92,15 +95,14 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
             </FormField>
           )}
           {!isSuperAdmin && <input type="hidden" {...register('site')} value={defaultSiteId ?? ''} />}
-          <FormField label="Full name" required error={errors.name?.message}><input className="form-input" {...register('name', { required: true, setValueAs: v => (typeof v === 'string' ? v.trim() : v) })} /></FormField>
-          <FormField label="Mobile" required error={errors.phone?.message}>
-            <Controller control={control} name="phone" rules={{ required: 'Phone is required', validate: (v) => validatePhone(v) || 'Invalid phone number' }} render={({ field }) => <PhoneField value={field.value} onChange={field.onChange} />} />
+          <FormField label="Worker Leader Name" required error={errors.name?.message}>
+            <input className="form-input" placeholder="e.g. Mark" {...register('name', { required: 'Name is required', setValueAs: v => (typeof v === 'string' ? v.trim() : v) })} />
           </FormField>
           <FormField label="Profession" required error={errors.profession?.message}>
             <Controller
               control={control}
               name="profession"
-              rules={{ required: 'Required' }}
+              rules={{ required: 'Profession is required' }}
               render={({ field }) => (
                 <CreatableSelect
                   value={field.value}
@@ -113,18 +115,25 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
               )}
             />
           </FormField>
-          <FormField label="Daily wage (₹)" required error={errors.dailyWage?.message}><input type="number" className="form-input" {...register('dailyWage', { required: true })} /></FormField>
-          <FormField label="Joining date" required error={errors.joiningDate?.message}>
-            <DatePickerInput id="worker-joining-date" value={watch('joiningDate')} onChange={(value) => setValue('joiningDate', value)} placeholder="Joining date" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            <FormField label="Daily Wage (₹)" required error={errors.dailyWage?.message}>
+              <input type="number" min="0" className="form-input" placeholder="800" {...register('dailyWage', { required: 'Daily wage is required' })} />
+            </FormField>
+            <FormField label="Number of Workers" required error={errors.workerCount?.message}>
+              <input type="number" min="0" className="form-input" placeholder="12" {...register('workerCount', { required: 'Worker count is required' })} />
+            </FormField>
+          </div>
+          <FormField label="Status">
+            <select className="form-select" {...register('status')}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </FormField>
-          <FormField label="Status"><select className="form-select" {...register('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></FormField>
-          <FormField label="Address" className="form-field--full"><input className="form-input" {...register('address', { setValueAs: v => (typeof v === 'string' ? v.trim() : v) })} /></FormField>
-          {/* <FormField label="Emergency contact"><input className="form-input" {...register('emergencyContactName')} /></FormField> */}
-          <FormField label="Emergency phone">
+          <FormField label="Emergency Phone (Optional)">
             <Controller control={control} name="emergencyContactPhone" rules={{ validate: (v) => !v || validatePhone(v) || 'Invalid phone number' }} render={({ field }) => <PhoneField value={field.value} onChange={field.onChange} />} />
           </FormField>
           <div className="form-field--full">
-            <FileUpload label="Photo" accept="image/*" value={photoFile} onChange={setPhotoFile} />
+            <FileUpload label="Photo (Optional)" accept="image/*" value={photoFile} onChange={setPhotoFile} />
             {worker?.photo?.url && !photoFile && <img src={worker.photo.url} alt="" style={{ width: 64, height: 64, borderRadius: 8, marginTop: 8, objectFit: 'cover' }} />}
           </div>
         </div>

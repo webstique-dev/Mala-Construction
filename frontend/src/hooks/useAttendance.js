@@ -83,10 +83,18 @@ export function useUpdateAttendance() {
   });
 }
 
-export function useDeleteAttendance() {
+export function useDailyAttendance(params) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.ATTENDANCE, 'daily', params],
+    queryFn: () => attendanceService.getDaily(params),
+    enabled: !!params?.siteId || !!params?.date,
+  });
+}
+
+export function useSaveDailyAttendance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: attendanceService.remove,
+    mutationFn: attendanceService.saveDaily,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.ATTENDANCE] });
       qc.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD] });

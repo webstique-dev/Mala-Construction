@@ -576,15 +576,15 @@ async function getContractors(queryParams, actor) {
 async function getPreviousDayWorkers(queryParams, actor) {
   const { siteId, date } = queryParams;
   const siteFilter = resolveSiteScope(actor, siteId);
+  const targetSiteId = siteFilter.site || (actor.role === 'site_admin' ? actor.assignedSite : null);
 
   if (!date) throw ApiError.badRequest('date is required');
 
   const targetDate = new Date(date);
   targetDate.setHours(0, 0, 0, 0);
 
-  // Find the most recent attendance date strictly before targetDate for this site
   const lastRecord = await Attendance.findOne({
-    ...siteFilter,
+    site: targetSiteId,
     date: { $lt: targetDate },
     isDeleted: false,
   })
@@ -598,18 +598,171 @@ async function getPreviousDayWorkers(queryParams, actor) {
   const prevEnd = new Date(prevDate); prevEnd.setHours(23, 59, 59, 999);
 
   const records = await Attendance.find({
-    ...siteFilter,
+    site: targetSiteId,
     date: { $gte: prevStart, $lte: prevEnd },
     isDeleted: false,
   })
     .populate([
       { path: 'profession', select: 'name _id' },
-      { path: 'worker', select: 'workerId name phone dailyWage status' },
+      { path: 'worker', select: 'workerId name phone dailyWage status workerCount' },
     ])
-    .select('worker workerName mobileNumber profession professionName dailyWage inTime outTime status date')
     .sort({ workerName: 1 });
 
-  return records;
+  return records.map((r) => ({
+    worker: r.worker?._id || r.worker,
+    workerLeaderName: r.workerName || r.worker?.name || '',
+    profession: r.profession,
+    professionName: r.professionName || r.profession?.name || '',
+    workerCount: r.workerCount ?? r.worker?.workerCount ?? 1,
+    dailyWage: r.dailyWage ?? r.worker?.dailyWage ?? 0,
+    prevDate: prevStart.toISOString().slice(0, 10),
+  }));
+}
+
+async function getDailyAttendance(queryParams, actor) {
+  const { siteId, date } = queryParams;
+  const siteFilter = resolveSiteScope(actor, siteId);
+  const targetSiteId = siteFilter.site || (actor.role === 'site_admin' ? actor.assignedSite : null);
+
+  if (!targetSiteId) {
+    throw ApiError.badRequest('Project site is required');
+  }
+
+  const attendanceDate = date ? new Date(date) : new Date();
+  const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(attendanceDate); dayEnd.setHours(23, 59, 59, 999);
+
+  const leaders = await Worker.find({
+    site: targetSiteId,
+    status: 'active',
+    isDeleted: false,
+  })
+    .populate('profession', 'name')
+    .sort({ name: 1 });
+
+  const existingRecords = await Attendance.find({
+    site: targetSiteId,
+    date: { $gte: dayStart, $lte: dayEnd },
+    isDeleted: false,
+  });
+
+  const attendanceMap = new Map();
+  existingRecords.forEach((rec) => {
+    if (rec.worker) {
+      attendanceMap.set(rec.worker.toString(), rec);
+    }
+  });
+
+  let totalWorkers = 0;
+  let totalLabourExpense = 0;
+
+  const leaderRows = leaders.map((leader) => {
+    const rec = attendanceMap.get(leader._id.toString());
+    const workerCount = rec ? (rec.workerCount ?? 0) : (leader.workerCount ?? 1);
+    const dailyWage = rec ? (rec.dailyWage ?? 0) : (leader.dailyWage ?? 0);
+    const totalAmount = workerCount * dailyWage;
+
+    totalWorkers += workerCount;
+    totalLabourExpense += totalAmount;
+
+    return {
+      _id: leader._id,
+      workerId: leader.workerId,
+      name: leader.name,
+      photo: leader.photo,
+      profession: leader.profession,
+      defaultWorkerCount: leader.workerCount ?? 1,
+      workerCount,
+      dailyWage,
+      totalAmount,
+      attendanceId: rec ? rec._id : null,
+      isMarked: !!rec,
+      remarks: rec ? rec.remarks || '' : '',
+    };
+  });
+
+  return {
+    date: dayStart.toISOString().slice(0, 10),
+    siteId: targetSiteId,
+    summary: {
+      totalLeaders: leaders.length,
+      totalWorkers,
+      totalLabourExpense,
+      markedCount: existingRecords.length,
+    },
+    leaders: leaderRows,
+  };
+}
+
+async function saveDailyAttendance(payload, actor) {
+  const { site: siteId, date, records = [] } = payload;
+  const targetSiteId = siteId || (actor.role === 'site_admin' ? actor.assignedSite : null);
+  if (!targetSiteId) throw ApiError.badRequest('Project site is required');
+  if (!date) throw ApiError.badRequest('Date is required');
+
+  assertSiteAccess(actor, targetSiteId);
+
+  const attendanceDate = new Date(date);
+  const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
+
+  const savedRecords = [];
+
+  for (const item of records) {
+    if (!item.worker) continue;
+
+    const workerDoc = await Worker.findOne({ _id: item.worker, site: targetSiteId, isDeleted: false });
+    if (!workerDoc) continue;
+
+    const count = Number(item.workerCount) >= 0 ? Number(item.workerCount) : (workerDoc.workerCount ?? 1);
+    const wage = item.dailyWage !== undefined && item.dailyWage !== null ? Number(item.dailyWage) : (workerDoc.dailyWage ?? 0);
+    const totalCost = Math.round(count * wage * 100) / 100;
+
+    let profName = '';
+    if (workerDoc.profession) {
+      const profDoc = await Profession.findById(workerDoc.profession);
+      if (profDoc) profName = profDoc.name;
+    }
+
+    const updated = await Attendance.findOneAndUpdate(
+      {
+        site: targetSiteId,
+        date: dayStart,
+        worker: workerDoc._id,
+      },
+      {
+        $set: {
+          site: targetSiteId,
+          date: dayStart,
+          worker: workerDoc._id,
+          workerLeaderName: workerDoc.name,
+          workerName: workerDoc.name,
+          mobileNumber: workerDoc.phone || '',
+          profession: workerDoc.profession,
+          professionName: profName,
+          workerCount: count,
+          dailyWage: wage,
+          totalAmount: totalCost,
+          dailyLabourCost: totalCost,
+          remarks: item.remarks ? item.remarks.trim() : '',
+          markedBy: actor._id,
+          isDeleted: false,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    savedRecords.push(updated);
+  }
+
+  await logActivity({
+    actor: actor._id,
+    site: targetSiteId,
+    action: 'created',
+    entityType: 'Attendance',
+    description: `Saved daily attendance for ${savedRecords.length} worker leader(s) on ${dayStart.toISOString().slice(0, 10)}`,
+  });
+
+  return getDailyAttendance({ siteId: targetSiteId, date }, actor);
 }
 
 module.exports = {
@@ -623,6 +776,8 @@ module.exports = {
   getWeeklyReport,
   getContractors,
   getPreviousDayWorkers,
+  getDailyAttendance,
+  saveDailyAttendance,
   calculateWorkingHours,
   calculateFinancials,
 };

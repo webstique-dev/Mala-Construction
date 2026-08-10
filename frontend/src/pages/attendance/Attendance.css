@@ -1190,3 +1190,38 @@
     font-size: var(--font-size-xs);
   }
 }
+
+/* KPI Pills for Daily Attendance Header */
+.attendance-top-bar {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.attendance-kpi-pill {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 140px;
+}
+
+.attendance-kpi-pill__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.attendance-kpi-pill__value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.attendance-kpi-pill--cost .attendance-kpi-pill__value {
+  color: var(--color-primary-700);
+}

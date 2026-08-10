@@ -51,6 +51,16 @@ const getPreviousDayWorkers = asyncHandler(async (req, res) => {
   res.json({ success: true, data: workers });
 });
 
+const getDailyAttendance = asyncHandler(async (req, res) => {
+  const data = await attendanceService.getDailyAttendance(req.query, req.user);
+  res.json({ success: true, data });
+});
+
+const saveDailyAttendance = asyncHandler(async (req, res) => {
+  const data = await attendanceService.saveDailyAttendance(req.body, req.user);
+  res.json({ success: true, data });
+});
+
 module.exports = {
   recordAttendance,
   recordBatchAttendance,
@@ -62,4 +72,6 @@ module.exports = {
   getWeeklyReport,
   getContractors,
   getPreviousDayWorkers,
+  getDailyAttendance,
+  saveDailyAttendance,
 };

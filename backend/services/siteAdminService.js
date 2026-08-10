@@ -78,27 +78,45 @@ async function getSiteAdminById(id) {
 
 async function updateSiteAdmin(id, data, actor, req) {
   const before = await getSiteAdminById(id);
+  const oldSiteId = before.assignedSite?._id?.toString() || before.assignedSite?.toString();
+  const newSiteId = data.assignedSite !== undefined ? (data.assignedSite ? data.assignedSite.toString() : null) : undefined;
 
-  // Photo replacement: upload new one is handled at the controller layer (needs the file buffer);
-  // here we just clean up the old Cloudinary asset if a new photo object was passed in.
+  let assignedSiteUpdated = false;
+
+  if (newSiteId !== undefined && newSiteId !== oldSiteId) {
+    if (newSiteId) {
+      await assertSiteAvailable(newSiteId, id);
+      if (oldSiteId) {
+        await siteRepository.updateById(oldSiteId, { assignedSiteAdmin: null });
+      }
+      await siteRepository.updateById(newSiteId, { assignedSiteAdmin: id });
+    } else if (oldSiteId) {
+      await siteRepository.updateById(oldSiteId, { assignedSiteAdmin: null });
+    }
+    assignedSiteUpdated = true;
+  }
+
   if (data.photo && before.photo?.publicId && data.photo.publicId !== before.photo.publicId) {
     await deleteAsset(before.photo.publicId);
   }
 
-  const updated = await userRepository.updateById(id, {
+  const updatePayload = {
     name: data.name,
     phone: data.phone,
+    ...(assignedSiteUpdated ? { assignedSite: newSiteId } : {}),
     ...(data.photo ? { photo: data.photo } : {}),
-  });
+  };
+
+  const updated = await userRepository.updateById(id, updatePayload);
 
   await recordActivity({
     actor,
     action: 'update',
     entityType: 'User',
     entityId: id,
-    site: before.assignedSite?._id,
-    before: { name: before.name, phone: before.phone },
-    after: { name: updated.name, phone: updated.phone },
+    site: newSiteId || oldSiteId,
+    before: { name: before.name, phone: before.phone, assignedSite: oldSiteId },
+    after: { name: updated.name, phone: updated.phone, assignedSite: updated.assignedSite },
     req,
   });
 

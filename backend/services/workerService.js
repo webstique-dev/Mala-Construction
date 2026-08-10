@@ -33,27 +33,30 @@ async function generateWorkerId(siteId) {
 }
 
 async function createWorker(data, actor, file, req) {
-  assertSiteAccess(actor, data.site);
+  const targetSite = data.site || (actor.role === 'site_admin' ? actor.assignedSite : null);
+  if (!targetSite) throw ApiError.badRequest('Project site is required');
+  assertSiteAccess(actor, targetSite);
 
   let photo = null;
   if (file) {
     photo = await uploadBuffer(file.buffer, 'mala-erp/workers/photos');
   }
 
-  const workerId = await generateWorkerId(data.site);
+  const workerId = await generateWorkerId(targetSite);
 
   const worker = await workerRepository.create({
-    site: data.site,
+    site: targetSite,
     workerId,
     name: data.name,
-    phone: data.phone,
+    phone: data.phone || '',
     profession: data.profession,
-    dailyWage: data.dailyWage,
-    joiningDate: data.joiningDate,
-    address: data.address,
+    dailyWage: Number(data.dailyWage) || 0,
+    workerCount: Number(data.workerCount) >= 0 ? Number(data.workerCount) : 1,
+    joiningDate: data.joiningDate || new Date(),
+    address: data.address || '',
     emergencyContact: {
-      name: data.emergencyContactName,
-      phone: data.emergencyContactPhone,
+      name: data.emergencyContactName || '',
+      phone: data.emergencyContactPhone || '',
     },
     status: data.status ?? 'active',
     photo,
@@ -61,7 +64,7 @@ async function createWorker(data, actor, file, req) {
   });
 
   await recordActivity({
-    actor, action: 'create', entityType: 'Worker', entityId: worker._id, site: data.site, after: worker.toObject(), req,
+    actor, action: 'create', entityType: 'Worker', entityId: worker._id, site: targetSite, after: worker.toObject(), req,
   });
 
   return workerRepository.findById(worker._id);

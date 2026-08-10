@@ -14,10 +14,11 @@ const workerSchema = new mongoose.Schema(
       publicId: { type: String, default: null },
     },
     name: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, trim: true },
+    phone: { type: String, trim: true, default: '' },
     profession: { type: mongoose.Schema.Types.ObjectId, ref: 'Profession', required: true },
     dailyWage: { type: Number, required: true, min: 0 },
-    joiningDate: { type: Date, required: true },
+    workerCount: { type: Number, default: 1, min: 0 },
+    joiningDate: { type: Date, default: Date.now },
     address: { type: String, trim: true },
     emergencyContact: {
       name: { type: String, trim: true },

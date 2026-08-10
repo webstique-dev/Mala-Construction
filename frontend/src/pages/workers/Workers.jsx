@@ -122,18 +122,18 @@ export default function Workers() {
     <div className="module-page">
       <div className="module-page__header">
         <div>
-          <h1>Workers Registry</h1>
-          <p>Supervise active labor forces, professions, and daily wage structures.</p>
+          <h1>Worker Leaders</h1>
+          <p>Supervise Worker Leaders, team worker counts, professions, and daily wage structures.</p>
         </div>
         <Button onClick={() => { setEditing(null); setIsFormOpen(true); }}>
-          <Plus size={18} /> Add Worker
+          <Plus size={18} /> Add Worker Leader
         </Button>
       </div>
 
       <div className="module-page__kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-md)' }}>
         <Card className="worker-kpi-card">
           <div className="worker-kpi-card__header">
-            <span>{selectedSite ? `Total Workers (${selectedSite.name})` : 'Total Workers (All Sites)'}</span>
+            <span>{selectedSite ? `Total Leaders (${selectedSite.name})` : 'Total Leaders (All Sites)'}</span>
             <Users size={18} className="worker-kpi-card__icon" />
           </div>
           <h3>{totalWorkersQuery.isLoading ? '...' : totalWorkersCount}</h3>
@@ -144,8 +144,8 @@ export default function Workers() {
             <div className="worker-kpi-card__header">
               <span>
                 {selectedSite
-                  ? `Total ${selectedProfession.name} (${selectedSite.name})`
-                  : `Total ${selectedProfession.name} (All Sites)`}
+                  ? `Total ${selectedProfession.name} Leaders (${selectedSite.name})`
+                  : `Total ${selectedProfession.name} Leaders (All Sites)`}
               </span>
               <Briefcase size={18} className="worker-kpi-card__icon" style={{ color: 'var(--color-success-600, #16a34a)' }} />
             </div>
@@ -157,14 +157,14 @@ export default function Workers() {
       <FilterToolbar
         search={search}
         onSearchChange={(v) => { setSearch(v); setPage(1); }}
-        searchPlaceholder="Search workers..."
+        searchPlaceholder="Search leaders by name..."
         filters={filterConfig}
         onReset={handleReset}
       />
 
       {isError && (
         <div className="sites-page__state sites-page__state--error" role="alert">
-          Failed to load workers database. Please try reloading.
+          Failed to load worker leaders database. Please try reloading.
         </div>
       )}
 
@@ -177,7 +177,7 @@ export default function Workers() {
       {!isError && !isLoading && (data?.items ?? []).length === 0 && (
         <div className="sites-page__state sites-page__state--empty">
           <Inbox size={32} />
-          <span>No workers registered. Add worker files to view items.</span>
+          <span>No worker leaders registered. Click "Add Worker Leader" to create one.</span>
         </div>
       )}
 
@@ -202,24 +202,20 @@ export default function Workers() {
                     ) : (
                       <div
                         className="ui-avatar"
-                        style={{ width: 44, height: 44, borderRadius: 12 }}
+                        style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--color-primary-100)', color: 'var(--color-primary-700)', fontWeight: 700 }}
                       >
                         {w.name[0]}
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 className="site-card__title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {w.isDeleted ? (
-                          <span>{w.name}</span>
-                        ) : (
-                          <Link to={`/workers/${w._id}`} className="link-btn" style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
-                            {w.name}
-                          </Link>
-                        )}
+                      <h3 className="site-card__title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>
+                        <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
+                          {w.name}
+                        </span>
                       </h3>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span className="site-card__code" style={{ textTransform: 'capitalize' }}>
-                          {w.profession?.name || 'Worker'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                        <span className="site-card__code" style={{ textTransform: 'capitalize', fontWeight: 600 }}>
+                          {w.profession?.name || 'Mason'}
                         </span>
                         {w.workerId && (
                           <span style={{ fontSize: 'var(--font-size-xs)', fontFamily: 'monospace', background: 'var(--color-primary-50)', color: 'var(--color-primary-700)', border: '1px solid var(--color-primary-200)', borderRadius: 4, padding: '1px 6px', fontWeight: 600 }}>
@@ -238,58 +234,54 @@ export default function Workers() {
                   </div>
 
                   <div className="site-card__body" style={{ marginTop: 'var(--space-md)' }}>
-                    <div className="site-card__info-row">
-                      <MapPin size={15} className="site-card__icon" />
-                      <span>{w.site?.name ?? 'No site assignment'}</span>
-                    </div>
-                    <div className="site-card__info-row">
-                      <Phone size={15} className="site-card__icon" />
-                      <span>{w.phone}</span>
+                    <div className="site-card__info-row" style={{ fontWeight: 600, color: 'var(--color-primary-800)', background: 'var(--color-primary-50)', padding: '6px 10px', borderRadius: 6 }}>
+                      <Users size={16} className="site-card__icon" style={{ color: 'var(--color-primary-600)' }} />
+                      <span>Workers Under Leader: <strong>{w.workerCount ?? 1}</strong></span>
                     </div>
                     <div className="site-card__info-row">
                       <DollarSign size={15} className="site-card__icon" />
-                      <span>{formatCurrency(w.dailyWage)} / day</span>
+                      <span>Daily Wage: <strong>{formatCurrency(w.dailyWage)}</strong> / worker</span>
                     </div>
+                    {(w.phone || w.emergencyContact?.phone) && (
+                      <div className="site-card__info-row">
+                        <Phone size={15} className="site-card__icon" />
+                        <span>{w.phone || w.emergencyContact?.phone}</span>
+                      </div>
+                    )}
                     <div className="site-card__info-row">
-                      <Calendar size={15} className="site-card__icon" />
-                      <span>Joined {formatDate(w.joiningDate)}</span>
+                      <MapPin size={15} className="site-card__icon" />
+                      <span>{w.site?.name ?? 'Assigned Site'}</span>
                     </div>
                   </div>
 
-                  <div className="site-card__actions">
+                  <div className="site-card__actions" style={{ display: 'flex', gap: 8, marginTop: 'var(--space-md)' }}>
                     {w.isDeleted ? (
                       <button
                         type="button"
                         className="site-card__btn site-card__btn--restore touch-target"
                         onClick={() => setConfirmTarget({ type: 'restore', worker: w })}
-                        title="Restore worker"
+                        title="Restore worker leader"
                       >
                         <RotateCcw size={16} /> Restore
                       </button>
                     ) : (
                       <>
-                        <Link
-                          to={`/workers/${w._id}`}
-                          className="site-card__btn touch-target"
-                          title="View Profile Dashboard"
-                        >
-                          <User size={16} /> Profile
-                        </Link>
                         <button
                           type="button"
                           className="site-card__btn touch-target"
                           onClick={() => { setEditing(w); setIsFormOpen(true); }}
                           title="Edit details"
+                          style={{ flex: 1 }}
                         >
-                          <Pencil size={16} /> Edit
+                          <Pencil size={16} /> Edit Leader
                         </button>
                         <button
                           type="button"
                           className="site-card__btn site-card__btn--danger touch-target"
                           onClick={() => setConfirmTarget({ type: 'delete', worker: w })}
-                          title="Delete worker"
+                          title="Delete worker leader"
                         >
-                          <Trash2 size={16} /> Delete
+                          <Trash2 size={16} />
                         </button>
                       </>
                     )}

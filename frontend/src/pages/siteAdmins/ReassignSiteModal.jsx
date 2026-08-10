@@ -51,10 +51,10 @@ export default function ReassignSiteModal({ isOpen, onClose, admin }) {
         <select className="form-select" value={siteId} onChange={(e) => setSiteId(e.target.value)}>
           <option value="">Select a site...</option>
           {sitesData?.items
-            ?.filter((site) => site._id !== admin?.assignedSite?._id)
+            ?.filter((site) => !site.assignedSiteAdmin && site._id !== admin?.assignedSite?._id)
             .map((site) => (
-              <option key={site._id} value={site._id} disabled={!!site.assignedSiteAdmin}>
-                {site.name} ({site.code}){site.assignedSiteAdmin ? ' - already has an admin' : ''}
+              <option key={site._id} value={site._id}>
+                {site.name} ({site.code})
               </option>
             ))}
         </select>

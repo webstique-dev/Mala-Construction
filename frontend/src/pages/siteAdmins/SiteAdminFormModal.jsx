@@ -44,7 +44,12 @@ export default function SiteAdminFormModal({ isOpen, onClose, admin, onCreated }
       if (isEditMode) {
         await updateSiteAdmin.mutateAsync({
           id: admin._id,
-          data: { name: values.name, phone: values.phone, ...(photoFile ? { photoFile } : {}) },
+          data: {
+            name: values.name,
+            phone: values.phone,
+            assignedSite: values.assignedSite || null,
+            ...(photoFile ? { photoFile } : {}),
+          },
         });
         toast.success('Site Admin updated.');
         onClose();
@@ -58,6 +63,17 @@ export default function SiteAdminFormModal({ isOpen, onClose, admin, onCreated }
       toast.error(err.response?.data?.message || 'Something went wrong.');
     }
   };
+
+  const currentAdminSiteId = admin?.assignedSite?._id || admin?.assignedSite || null;
+
+  const availableSites = (sitesData?.items || []).filter((site) => {
+    const assignedAdminId = site.assignedSiteAdmin?._id || site.assignedSiteAdmin;
+    if (!assignedAdminId) return true;
+    if (isEditMode && (assignedAdminId.toString() === admin?._id?.toString() || site._id.toString() === currentAdminSiteId?.toString())) {
+      return true;
+    }
+    return false;
+  });
 
   return (
     <Drawer
@@ -99,18 +115,21 @@ export default function SiteAdminFormModal({ isOpen, onClose, admin, onCreated }
           />
         </FormField>
 
-        {!isEditMode && (
-          <FormField label="Assigned site" required error={errors.assignedSite?.message}>
-            <select className="form-select" {...register('assignedSite', { required: 'Please select a site' })}>
-              <option value="">Select a site...</option>
-              {sitesData?.items?.map((site) => (
-                <option key={site._id} value={site._id} disabled={!!site.assignedSiteAdmin}>
-                  {site.name} ({site.code}){site.assignedSiteAdmin ? ' - already has an admin' : ''}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        )}
+        <FormField
+          label="Assigned site"
+          required={!isEditMode}
+          error={errors.assignedSite?.message}
+          hint={isEditMode && !currentAdminSiteId ? 'This Site Admin is currently unassigned. Select a site to assign.' : undefined}
+        >
+          <select className="form-select" {...register('assignedSite', { required: !isEditMode && 'Please select a site' })}>
+            <option value="">Select a site...</option>
+            {availableSites.map((site) => (
+              <option key={site._id} value={site._id}>
+                {site.name} ({site.code})
+              </option>
+            ))}
+          </select>
+        </FormField>
 
         <FormField label="Photo" hint="JPEG, PNG or WebP, up to 5MB">
           <input

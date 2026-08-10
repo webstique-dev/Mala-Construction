@@ -12,6 +12,7 @@ const createSiteAdminSchema = z.object({
 const updateSiteAdminSchema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
   phone: z.string().trim().min(7).max(20).optional(),
+  assignedSite: z.preprocess((val) => (val === '' || val === null ? null : val), objectId.nullable().optional()),
 });
 
 const setStatusSchema = z.object({
