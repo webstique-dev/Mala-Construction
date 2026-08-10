@@ -87,7 +87,7 @@ export function useDailyAttendance(params) {
   return useQuery({
     queryKey: [QUERY_KEYS.ATTENDANCE, 'daily', params],
     queryFn: () => attendanceService.getDaily(params),
-    enabled: !!params?.siteId || !!params?.date,
+    enabled: !!params?.date,
   });
 }
 

@@ -2,24 +2,24 @@ const env = require('../config/env');
 const { parseDurationMs } = require('./tokenUtils');
 
 /** Base flags shared by all auth cookies. */
-// function baseCookieOptions() {
-//   return {
-//     httpOnly: true,
-//     secure: env.cookie.secure,
-//     sameSite: 'lax',
-//     domain: env.cookie.domain,
-//   };
-// }
-
-
 function baseCookieOptions() {
   return {
     httpOnly: true,
     secure: env.cookie.secure,
-    sameSite: 'none',
-    domain: env.cookie.domain || undefined,
+    sameSite: 'lax',
+    domain: env.cookie.domain,
   };
 }
+
+
+// function baseCookieOptions() {
+//   return {
+//     httpOnly: true,
+//     secure: env.cookie.secure,
+//     sameSite: 'none',
+//     domain: env.cookie.domain || undefined,
+//   };
+// }
 
 function accessCookieOptions() {
   return {

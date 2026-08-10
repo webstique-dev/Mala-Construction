@@ -622,29 +622,30 @@ async function getPreviousDayWorkers(queryParams, actor) {
 async function getDailyAttendance(queryParams, actor) {
   const { siteId, date } = queryParams;
   const siteFilter = resolveSiteScope(actor, siteId);
-  const targetSiteId = siteFilter.site || (actor.role === 'site_admin' ? actor.assignedSite : null);
-
-  if (!targetSiteId) {
-    throw ApiError.badRequest('Project site is required');
-  }
+  const targetSiteId = siteFilter.site || null;
 
   const attendanceDate = date ? new Date(date) : new Date();
   const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(attendanceDate); dayEnd.setHours(23, 59, 59, 999);
 
-  const leaders = await Worker.find({
-    site: targetSiteId,
+  const workerQuery = {
+    ...siteFilter,
     status: 'active',
     isDeleted: false,
-  })
+  };
+
+  const leaders = await Worker.find(workerQuery)
     .populate('profession', 'name')
+    .populate('site', 'name code')
     .sort({ name: 1 });
 
-  const existingRecords = await Attendance.find({
-    site: targetSiteId,
+  const attendanceQuery = {
+    ...siteFilter,
     date: { $gte: dayStart, $lte: dayEnd },
     isDeleted: false,
-  });
+  };
+
+  const existingRecords = await Attendance.find(attendanceQuery);
 
   const attendanceMap = new Map();
   existingRecords.forEach((rec) => {
@@ -671,6 +672,7 @@ async function getDailyAttendance(queryParams, actor) {
       name: leader.name,
       photo: leader.photo,
       profession: leader.profession,
+      site: leader.site ? { _id: leader.site._id, name: leader.site.name, code: leader.site.code } : null,
       defaultWorkerCount: leader.workerCount ?? 1,
       workerCount,
       dailyWage,

@@ -63,33 +63,50 @@
 }
 
 /* KPI Summary Cards Grid */
-.attendance-page__kpi-grid {
+.attendance-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: var(--space-md);
+  margin-bottom: var(--space-xs);
 }
 
 .attendance-kpi-card {
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 18px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
 }
 
 .attendance-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: var(--color-primary-300, #a5b4fc);
+}
+
+.attendance-kpi-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.attendance-kpi-card__label {
+  font-size: var(--font-size-2xs, 11px);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 .attendance-kpi-card__icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -97,42 +114,62 @@
 }
 
 .kpi-icon-blue {
-  background-color: rgba(30, 111, 255, 0.12);
-  color: var(--color-primary-600);
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
 }
 
 .kpi-icon-green {
-  background-color: rgba(16, 185, 129, 0.12);
+  background-color: rgba(16, 185, 129, 0.1);
   color: #059669;
 }
 
 .kpi-icon-amber {
-  background-color: rgba(245, 158, 11, 0.12);
+  background-color: rgba(245, 158, 11, 0.1);
   color: #d97706;
 }
 
 .kpi-icon-purple {
-  background-color: rgba(109, 40, 217, 0.12);
-  color: #7c3aed;
+  background-color: rgba(147, 51, 234, 0.1);
+  color: #9333ea;
 }
 
-.attendance-kpi-card__info {
+.attendance-kpi-card__body {
   display: flex;
   flex-direction: column;
-}
-
-.attendance-kpi-card__label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  gap: 2px;
 }
 
 .attendance-kpi-card__value {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
+  font-size: 1.4rem;
+  font-weight: 800;
   color: var(--color-text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+.attendance-kpi-card__value--site {
+  font-size: 1.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.attendance-kpi-card__value--cost {
+  color: var(--color-primary-700, #4338ca);
+}
+
+.attendance-kpi-card__unit {
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  margin-left: 2px;
+}
+
+.attendance-kpi-card__sub {
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 500;
+  color: var(--color-text-tertiary);
   margin-top: 2px;
 }
 
@@ -1224,4 +1261,251 @@
 
 .attendance-kpi-pill--cost .attendance-kpi-pill__value {
   color: var(--color-primary-700);
+}
+
+/* ========================================================
+   LABOUR ATTENDANCE REDESIGN UI & FILTER TOOLBAR STYLES
+   ======================================================== */
+
+.attendance-site-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  background: var(--color-primary-100, #e0e7ff);
+  color: var(--color-primary-800, #3730a3);
+  padding: 4px 10px;
+  border-radius: 16px;
+}
+
+.attendance-site-card {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.attendance-site-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-primary-400, #818cf8);
+  box-shadow: var(--shadow-md);
+}
+
+.attendance-site-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--color-primary-50, #eep2ff);
+  color: var(--color-primary-700, #4338ca);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.attendance-site-card__code {
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-secondary);
+  font-family: monospace;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.attendance-site-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary-700);
+}
+
+.attendance-site-card:hover .attendance-site-card__footer {
+  background: var(--color-primary-50, #eep2ff);
+}
+
+/* Filter Toolbar */
+.attendance-filter-bar {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.attendance-filter-bar__container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+/* Search Bar Input */
+.attendance-search-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.attendance-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.attendance-search-input {
+  padding-left: 36px !important;
+}
+
+/* Trade / Profession Tag */
+.attendance-trade-tag {
+  display: inline-block;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  padding: 2px 10px;
+  border-radius: 6px;
+  fontSize: var(--font-size-xs);
+  fontWeight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Attendance Status Pills */
+.attendance-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.attendance-status-pill--marked {
+  background: var(--color-success-50, #f0fdf4);
+  color: var(--color-success-700, #15803d);
+  border: 1px solid var(--color-success-200, #bbf7d0);
+}
+
+.attendance-status-pill--draft {
+  background: var(--color-warning-50, #fffbeb);
+  color: var(--color-warning-700, #b45309);
+  border: 1px solid var(--color-warning-200, #fde68a);
+}
+
+/* Present vs Absent Badge in Table */
+.attendance-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 16px;
+}
+
+.attendance-status-badge--present {
+  background: var(--color-success-50, #f0fdf4);
+  color: var(--color-success-700, #15803d);
+  border: 1px solid var(--color-success-200, #bbf7d0);
+}
+
+.attendance-status-badge--absent {
+  background: var(--color-gray-100, #f1f5f9);
+  color: var(--color-text-tertiary, #94a3b8);
+  border: 1px solid var(--color-border);
+}
+
+/* Worker Count Pill */
+.attendance-worker-cnt-pill {
+  display: inline-block;
+  font-weight: 800;
+  font-size: var(--font-size-sm);
+  padding: 2px 10px;
+  border-radius: 8px;
+}
+
+.cnt-active {
+  background: var(--color-primary-50, #eep2ff);
+  color: var(--color-primary-800, #3730a3);
+}
+
+.cnt-zero {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+}
+
+/* Table Hover & Footer */
+.attendance-table__row {
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.attendance-table__row:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.attendance-table__footer {
+  padding: 14px 20px;
+  background: var(--color-bg-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Drawer Section Controls */
+.attendance-drawer-header-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-bg-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.attendance-add-leader-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-primary-50, #eep2ff);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-primary-200, #c7d2fe);
+}
+
+.attendance-drawer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  transition: all 0.15s ease;
+}
+
+.attendance-drawer-card.card-present {
+  border-color: var(--color-primary-200, #c7d2fe);
+}
+
+.attendance-drawer-card.card-absent {
+  background: var(--color-bg-secondary);
+  opacity: 0.85;
 }

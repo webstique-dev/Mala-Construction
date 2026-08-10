@@ -119,16 +119,13 @@ export default function WorkerFormModal({ isOpen, onClose, worker, defaultSiteId
             <FormField label="Daily Wage (₹)" required error={errors.dailyWage?.message}>
               <input type="number" min="0" className="form-input" placeholder="800" {...register('dailyWage', { required: 'Daily wage is required' })} />
             </FormField>
-            <FormField label="Number of Workers" required error={errors.workerCount?.message}>
-              <input type="number" min="0" className="form-input" placeholder="12" {...register('workerCount', { required: 'Worker count is required' })} />
+            <FormField label="Status">
+              <select className="form-select" {...register('status')}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
             </FormField>
           </div>
-          <FormField label="Status">
-            <select className="form-select" {...register('status')}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </FormField>
           <FormField label="Emergency Phone (Optional)">
             <Controller control={control} name="emergencyContactPhone" rules={{ validate: (v) => !v || validatePhone(v) || 'Invalid phone number' }} render={({ field }) => <PhoneField value={field.value} onChange={field.onChange} />} />
           </FormField>
