@@ -1815,3 +1815,100 @@
     align-items: flex-start;
   }
 }
+
+/* Tab Navigation Header */
+.attendance-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0;
+  margin-bottom: var(--space-md);
+}
+
+.attendance-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -1px;
+}
+
+.attendance-tab-btn:hover {
+  color: var(--color-primary-600);
+}
+
+.attendance-tab-btn--active {
+  color: var(--color-primary-600, #2563eb);
+  border-bottom-color: var(--color-primary-600, #2563eb);
+  font-weight: 700;
+}
+
+/* Date Range Presets Bar */
+.attendance-range-presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--color-surface);
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 10px);
+  margin-bottom: var(--space-xs);
+}
+
+.attendance-preset-btn {
+  padding: 6px 14px;
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.attendance-preset-btn:hover {
+  border-color: var(--color-primary-300);
+  color: var(--color-text-primary);
+}
+
+.attendance-preset-btn--active {
+  background: var(--color-primary-50, #eef2ff);
+  color: var(--color-primary-700, #1d4ed8);
+  border-color: var(--color-primary-400, #60a5fa);
+  font-weight: 700;
+}
+
+/* Export Menu Dropdown */
+.attendance-export-btn {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Sortable Th */
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable-th:hover {
+  color: var(--color-primary-600);
+}
+
+.sortable-th__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

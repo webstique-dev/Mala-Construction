@@ -15,6 +15,12 @@ import {
   Filter,
   AlertCircle,
   Inbox,
+  Download,
+  Printer,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  TrendingUp,
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import DatePickerInput from '../../components/ui/DatePickerInput';
@@ -28,6 +34,7 @@ import {
   useDailyAttendance,
   useSaveDailyAttendance,
   usePreviousDayWorkers,
+  useAttendanceHistory,
 } from '../../hooks/useAttendance';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -45,10 +52,13 @@ function getLocalDateString() {
 
 export default function Attendance() {
   const toast = useToast();
-  // Live / selected attendance date
+  // Active Navigation Tab: 'daily' | 'history'
+  const [activeTab, setActiveTab] = useState('daily');
+
+  // Live / selected attendance date for Tab 1 (Daily View)
   const [selectedDate, setSelectedDate] = useState(getLocalDateString);
 
-  // Main Page Table Filters
+  // Main Page Table Filters for Tab 1 (Daily View)
   const [siteFilter, setSiteFilter] = useState(''); // '' means All Sites for Super Admin
   const [search, setSearch] = useState('');
   const [professionFilter, setProfessionFilter] = useState('');
@@ -81,6 +91,55 @@ export default function Attendance() {
   // Previous Day Copy Query for Drawer
   const [copyFetchEnabled, setCopyFetchEnabled] = useState(false);
   const prevDayQuery = usePreviousDayWorkers({ siteId: drawerTargetSiteId, date: getLocalDateString() }, copyFetchEnabled);
+
+  // Tab 2 ("All Records") State
+  const [historyPeriod, setHistoryPeriod] = useState('month'); // 'today' | 'week' | 'month' | 'custom'
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
+  const [historySiteFilter, setHistorySiteFilter] = useState('');
+  const [historyProfessionFilter, setHistoryProfessionFilter] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
+  const [historySortBy, setHistorySortBy] = useState('date');
+  const [historySortOrder, setHistorySortOrder] = useState('desc');
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyLimit = 20;
+
+  // Query hook for Tab 2 ("All Records")
+  const historyParams = useMemo(() => {
+    const params = {
+      siteId: isSuperAdmin ? (historySiteFilter || undefined) : siteId,
+      period: historyPeriod,
+      professionId: historyProfessionFilter || undefined,
+      status: historyStatusFilter || undefined,
+      search: historySearch || undefined,
+      sortBy: historySortBy,
+      sortOrder: historySortOrder,
+      page: historyPage,
+      limit: historyLimit,
+    };
+    if (historyPeriod === 'custom') {
+      if (historyStartDate) params.startDate = historyStartDate;
+      if (historyEndDate) params.endDate = historyEndDate;
+    }
+    return params;
+  }, [
+    isSuperAdmin,
+    historySiteFilter,
+    siteId,
+    historyPeriod,
+    historyProfessionFilter,
+    historyStatusFilter,
+    historySearch,
+    historySortBy,
+    historySortOrder,
+    historyPage,
+    historyLimit,
+    historyStartDate,
+    historyEndDate,
+  ]);
+
+  const historyQuery = useAttendanceHistory(historyParams);
 
   // Synchronize drawer site selection when drawer opens
   useEffect(() => {
@@ -127,164 +186,373 @@ export default function Attendance() {
   // Main table active rows derived from mainAttendanceQuery
   const mainTableRows = useMemo(() => {
     if (!mainAttendanceQuery.data?.leaders) return [];
-    // Strict date filter guard: verify query date matches selectedDate
-    if (mainAttendanceQuery.data?.date && mainAttendanceQuery.data.date !== selectedDate) {
+
+    const queryDateStr = mainAttendanceQuery.data.date;
+    if (selectedDate && queryDateStr && queryDateStr !== selectedDate) {
       return [];
     }
-    return mainAttendanceQuery.data.leaders
-      .filter((l) => l.isMarked)
-      .map((l) => {
-        const count = l.workerCount ?? 0;
-        const isPresent = l.status === 'present' || (l.status !== 'absent' && count > 0);
-        return {
-          worker: l._id,
-          name: l.name,
-          profession: l.profession,
-          site: l.site,
-          photo: l.photo,
-          dailyWage: l.dailyWage,
-          workerCount: count,
-          status: l.status || (count > 0 ? 'present' : 'absent'),
-          isPresent,
-          isMarked: true,
-          remarks: l.remarks || '',
-        };
-      });
+
+    return mainAttendanceQuery.data.leaders.filter((l) => l.isMarked);
   }, [mainAttendanceQuery.data, selectedDate]);
 
-  // Filtered rows for main table view
+  // Client-side filtering on main table rows
   const filteredTableRows = useMemo(() => {
-    return mainTableRows.filter((r) => {
-      // Search filter (Name / Profession / Site)
-      if (search.trim()) {
-        const q = search.toLowerCase().trim();
-        const matchesName = r.name?.toLowerCase().includes(q);
-        const matchesProf = (typeof r.profession === 'object' ? r.profession?.name : '')?.toLowerCase().includes(q);
-        const matchesSite = r.site?.name?.toLowerCase().includes(q);
-        if (!matchesName && !matchesProf && !matchesSite) return false;
+    return mainTableRows.filter((row) => {
+      if (search) {
+        const term = search.toLowerCase();
+        const nameMatch = row.name?.toLowerCase().includes(term);
+        const profMatch = row.profession?.name?.toLowerCase().includes(term);
+        const siteMatch = row.site?.name?.toLowerCase().includes(term);
+        if (!nameMatch && !profMatch && !siteMatch) return false;
       }
-      // Profession filter
-      if (professionFilter) {
-        const profId = typeof r.profession === 'object' ? r.profession?._id?.toString() : r.profession?.toString();
-        if (profId !== professionFilter.toString()) return false;
+
+      if (professionFilter && row.profession?._id !== professionFilter) {
+        return false;
       }
-      // Status filter
-      if (statusFilter === 'present' && !r.isPresent) return false;
-      if (statusFilter === 'absent' && r.isPresent) return false;
+
+      if (statusFilter && row.status !== statusFilter) {
+        return false;
+      }
 
       return true;
     });
   }, [mainTableRows, search, professionFilter, statusFilter]);
 
-  // Compute summary totals for main table view
+  // Calculated summary stats for Daily View
   const summaryTotals = useMemo(() => {
+    const isRecorded = mainTableRows.length > 0;
+    let presentLeaders = 0;
     let totalWorkers = 0;
     let totalLabourExpense = 0;
-    let presentLeaders = 0;
 
     mainTableRows.forEach((r) => {
-      if (r.isPresent) {
-        presentLeaders++;
-        const cnt = Math.max(0, Number(r.workerCount) || 0);
-        const wage = Math.max(0, Number(r.dailyWage) || 0);
-        totalWorkers += cnt;
-        totalLabourExpense += cnt * wage;
+      if (r.status === 'present' || r.workerCount > 0) {
+        presentLeaders += 1;
+        totalWorkers += r.workerCount;
+        totalLabourExpense += r.totalAmount;
       }
     });
 
     return {
-      totalLeaders: mainTableRows.length,
+      totalLeaders: mainAttendanceQuery.data?.leaders?.length || 0,
       presentLeaders,
       totalWorkers,
       totalLabourExpense,
-      isRecorded: (mainAttendanceQuery.data?.summary?.markedCount ?? 0) > 0,
+      isRecorded,
     };
   }, [mainTableRows, mainAttendanceQuery.data]);
 
-  // Unadded leaders in drawer popup dropdown
-  const drawerUnaddedLeaders = useMemo(() => {
-    return drawerRows.filter((r) => !r.inList);
-  }, [drawerRows]);
-
-  // Active leaders in drawer popup roster
-  const drawerActiveRows = useMemo(() => {
-    return drawerRows.filter((r) => r.inList);
-  }, [drawerRows]);
-
-  // Drawer total calculations
-  const drawerTotals = useMemo(() => {
-    let totalWorkers = 0;
-    let totalLabourExpense = 0;
-    drawerActiveRows.forEach((r) => {
-      if (r.isPresent) {
-        const cnt = Math.max(0, Number(r.workerCount) || 0);
-        const wage = Math.max(0, Number(r.dailyWage) || 0);
-        totalWorkers += cnt;
-        totalLabourExpense += cnt * wage;
-      }
-    });
-    return { totalWorkers, totalLabourExpense };
-  }, [drawerActiveRows]);
-
-  // Reset main table filters
+  // Reset filters handlers
   const handleResetFilters = () => {
     setSearch('');
+    setSiteFilter('');
     setProfessionFilter('');
     setStatusFilter('');
     setSelectedDate(getLocalDateString());
-    if (isSuperAdmin) setSiteFilter('');
   };
 
-  // Filter toolbar configuration matching standard application layout
-  const filterConfig = [
-    {
+  const handleResetHistoryFilters = () => {
+    setHistoryPeriod('month');
+    setHistoryStartDate('');
+    setHistoryEndDate('');
+    setHistorySiteFilter('');
+    setHistoryProfessionFilter('');
+    setHistoryStatusFilter('');
+    setHistorySearch('');
+    setHistorySortBy('date');
+    setHistorySortOrder('desc');
+    setHistoryPage(1);
+  };
+
+  // Sorting handler for Tab 2 Table
+  const handleHistorySort = (field) => {
+    if (historySortBy === field) {
+      setHistorySortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setHistorySortBy(field);
+      setHistorySortOrder('desc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (historySortBy !== field) return <ArrowUpDown size={13} style={{ opacity: 0.4 }} />;
+    return historySortOrder === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />;
+  };
+
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    const records = historyQuery.data?.items || [];
+    if (records.length === 0) {
+      toast.error('No attendance records available to export.');
+      return;
+    }
+
+    const headers = ['Date', 'Project Site', 'Worker Leader', 'Profession / Trade', 'Status', 'Labour Count', 'Daily Wage', 'Total Amount', 'Remarks'];
+    const rows = records.map((r) => [
+      `"${formatDate(r.date)}"`,
+      `"${r.site?.name || 'N/A'}"`,
+      `"${r.workerName || r.worker?.name || 'Unknown'}"`,
+      `"${r.profession?.name || r.professionName || 'General Trade'}"`,
+      `"${r.status || 'present'}"`,
+      r.workerCount ?? 1,
+      r.dailyWage ?? 0,
+      r.totalAmount ?? 0,
+      `"${(r.remarks || '').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Attendance_Records_History_${getLocalDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('CSV export generated successfully.');
+  };
+
+  // PDF Export Handler
+  const handleExportPDF = () => {
+    const records = historyQuery.data?.items || [];
+    if (records.length === 0) {
+      toast.error('No attendance records available to export.');
+      return;
+    }
+
+    const printContent = `
+      <html>
+        <head>
+          <title>Attendance Records History Report</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 24px; color: #1e293b; }
+            h1 { margin-bottom: 4px; font-size: 20px; }
+            p { color: #64748b; font-size: 13px; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+            th { background-color: #f1f5f9; font-weight: 700; }
+            .text-right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>Attendance Records History Report</h1>
+          <p>Exported on ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Site</th>
+                <th>Worker Leader</th>
+                <th>Trade</th>
+                <th>Status</th>
+                <th>Labours</th>
+                <th>Wage</th>
+                <th class="text-right">Total Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records
+                .map(
+                  (r) => `
+                <tr>
+                  <td>${formatDate(r.date)}</td>
+                  <td>${r.site?.name || 'N/A'}</td>
+                  <td>${r.workerName || r.worker?.name || 'Unknown'}</td>
+                  <td>${r.profession?.name || r.professionName || 'General'}</td>
+                  <td>${r.status || 'present'}</td>
+                  <td>${r.workerCount ?? 1}</td>
+                  <td>₹${r.dailyWage ?? 0}</td>
+                  <td class="text-right">₹${r.totalAmount ?? 0}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 250);
+      toast.success('PDF report window opened.');
+    }
+  };
+
+  // Filter toolbar configuration for Tab 1 (Daily View)
+  const filterConfig = useMemo(() => {
+    const filters = [];
+
+    filters.push({
       key: 'date',
-      label: 'Date',
+      label: 'Attendance Date',
       type: 'date',
       value: selectedDate,
       onChange: (val) => setSelectedDate(val || getLocalDateString()),
-    },
-    ...(isSuperAdmin ? [{
-      key: 'siteId',
-      label: 'Site',
-      type: 'select',
-      value: siteFilter,
-      onChange: (val) => setSiteFilter(val),
-      options: activeSites.data?.map((s) => ({ value: s._id, label: s.name })) || [],
-    }] : []),
-    {
+    });
+
+    if (isSuperAdmin) {
+      filters.push({
+        key: 'site',
+        label: 'Project Site',
+        type: 'select',
+        value: siteFilter,
+        onChange: (val) => setSiteFilter(val),
+        options: [
+          { value: '', label: 'All Sites Combined' },
+          ...(activeSites.data?.map((s) => ({
+            value: s._id,
+            label: `${s.name} (${s.code})`,
+          })) || []),
+        ],
+      });
+    }
+
+    filters.push({
       key: 'profession',
-      label: 'Profession',
+      label: 'Profession / Trade',
       type: 'select',
       value: professionFilter,
       onChange: (val) => setProfessionFilter(val),
-      options: professions.data?.map((p) => ({ value: p._id, label: p.name })) || [],
-    },
-    {
+      options: [
+        { value: '', label: 'All Professions' },
+        ...(professions.data?.map((p) => ({
+          value: p._id,
+          label: p.name,
+        })) || []),
+      ],
+    });
+
+    filters.push({
       key: 'status',
-      label: 'Status',
+      label: 'Attendance Status',
       type: 'select',
       value: statusFilter,
       onChange: (val) => setStatusFilter(val),
       options: [
+        { value: '', label: 'All Statuses' },
         { value: 'present', label: 'Present Only' },
         { value: 'absent', label: 'Absent Only' },
       ],
-    },
-  ];
+    });
+
+    return filters;
+  }, [selectedDate, isSuperAdmin, siteFilter, activeSites.data, professionFilter, professions.data, statusFilter]);
+
+  // Filter toolbar configuration for Tab 2 (All Records)
+  const historyFilterConfig = useMemo(() => {
+    const filters = [];
+
+    if (isSuperAdmin) {
+      filters.push({
+        key: 'site',
+        label: 'Project Site',
+        type: 'select',
+        value: historySiteFilter,
+        onChange: (val) => {
+          setHistorySiteFilter(val);
+          setHistoryPage(1);
+        },
+        options: [
+          { value: '', label: 'All Sites Combined' },
+          ...(activeSites.data?.map((s) => ({
+            value: s._id,
+            label: `${s.name} (${s.code})`,
+          })) || []),
+        ],
+      });
+    }
+
+    filters.push({
+      key: 'profession',
+      label: 'Profession / Trade',
+      type: 'select',
+      value: historyProfessionFilter,
+      onChange: (val) => {
+        setHistoryProfessionFilter(val);
+        setHistoryPage(1);
+      },
+      options: [
+        { value: '', label: 'All Professions' },
+        ...(professions.data?.map((p) => ({
+          value: p._id,
+          label: p.name,
+        })) || []),
+      ],
+    });
+
+    filters.push({
+      key: 'status',
+      label: 'Attendance Status',
+      type: 'select',
+      value: historyStatusFilter,
+      onChange: (val) => {
+        setHistoryStatusFilter(val);
+        setHistoryPage(1);
+      },
+      options: [
+        { value: '', label: 'All Statuses' },
+        { value: 'present', label: 'Present Only' },
+        { value: 'absent', label: 'Absent Only' },
+        { value: 'halfDay', label: 'Half Day Only' },
+      ],
+    });
+
+    return filters;
+  }, [isSuperAdmin, historySiteFilter, activeSites.data, historyProfessionFilter, professions.data, historyStatusFilter]);
 
   // Drawer handlers
-  const handleAddLeaderToList = (leaderId) => {
-    if (!leaderId) return;
+  const handleTogglePresence = (workerId) => {
     setDrawerRows((prev) =>
       prev.map((r) => {
-        if (r.worker === leaderId) {
-          const defaultCount = r.defaultWorkerCount || 1;
+        if (r.worker === workerId) {
+          const nextPresent = !r.isPresent;
+          return {
+            ...r,
+            isPresent: nextPresent,
+            workerCount: nextPresent ? (r.workerCount > 0 ? r.workerCount : (r.defaultWorkerCount ?? 1)) : 0,
+          };
+        }
+        return r;
+      })
+    );
+    setIsDirty(true);
+  };
+
+  const handleCountChange = (workerId, val) => {
+    const countVal = val === '' ? '' : Math.max(0, Number(val));
+    setDrawerRows((prev) =>
+      prev.map((r) => (r.worker === workerId ? { ...r, workerCount: countVal } : r))
+    );
+    setIsDirty(true);
+  };
+
+  const handleRemarksChange = (workerId, val) => {
+    setDrawerRows((prev) =>
+      prev.map((r) => (r.worker === workerId ? { ...r, remarks: val } : r))
+    );
+    setIsDirty(true);
+  };
+
+  const handleRemoveLeaderFromList = (workerId) => {
+    setDrawerRows((prev) =>
+      prev.map((r) => (r.worker === workerId ? { ...r, inList: false, isPresent: false, workerCount: 0 } : r))
+    );
+    setIsDirty(true);
+  };
+
+  const handleAddLeaderToList = (workerId) => {
+    if (!workerId) return;
+    setDrawerRows((prev) =>
+      prev.map((r) => {
+        if (r.worker === workerId) {
           return {
             ...r,
             inList: true,
             isPresent: true,
-            workerCount: r.workerCount > 0 ? r.workerCount : defaultCount,
+            workerCount: r.defaultWorkerCount ?? 1,
           };
         }
         return r;
@@ -294,88 +562,72 @@ export default function Attendance() {
     setIsDirty(true);
   };
 
-  const handleRemoveLeaderFromList = (leaderId) => {
-    setDrawerRows((prev) =>
-      prev.map((r) => (r.worker === leaderId ? { ...r, inList: false, isPresent: false, workerCount: 0 } : r))
-    );
-    setIsDirty(true);
-  };
-
-  const handleTogglePresence = (workerId) => {
-    setDrawerRows((prev) =>
-      prev.map((r) => {
-        if (r.worker === workerId) {
-          const nextIsPresent = !r.isPresent;
-          return {
-            ...r,
-            isPresent: nextIsPresent,
-            workerCount: nextIsPresent ? (r.workerCount > 0 ? r.workerCount : r.defaultWorkerCount || 1) : 0,
-          };
-        }
-        return r;
-      })
-    );
-    setIsDirty(true);
-  };
-
-  const handleCountChange = (workerId, newCount) => {
-    const val = parseInt(newCount, 10);
-    const count = isNaN(val) ? 0 : Math.max(0, val);
-    setDrawerRows((prev) =>
-      prev.map((r) => (r.worker === workerId ? { ...r, workerCount: count, isPresent: count > 0 } : r))
-    );
-    setIsDirty(true);
-  };
-
-  const handleRemarksChange = (workerId, remarksText) => {
-    setDrawerRows((prev) =>
-      prev.map((r) => (r.worker === workerId ? { ...r, remarks: remarksText } : r))
-    );
-    setIsDirty(true);
-  };
-
-  const handleCopyPreviousDay = async () => {
-    if (!drawerTargetSiteId) {
+  const handleCopyPreviousDay = () => {
+    const targetSite = isSuperAdmin ? drawerSiteId : siteId;
+    if (!targetSite) {
       toast.error('Please select a project site first.');
       return;
     }
     setCopyFetchEnabled(true);
-    try {
-      const prevData = await prevDayQuery.refetch();
-      const prevRecords = prevData?.data;
-      if (!prevRecords || prevRecords.length === 0) {
-        toast.info('No previous date attendance records found for this site.');
-        return;
-      }
-
-      const prevMap = new Map();
-      prevRecords.forEach((pr) => {
-        if (pr.worker) prevMap.set(pr.worker.toString(), pr.workerCount);
-      });
-
-      let copiedCount = 0;
-      setDrawerRows((prev) =>
-        prev.map((r) => {
-          if (prevMap.has(r.worker.toString())) {
-            const count = prevMap.get(r.worker.toString());
-            copiedCount++;
-            return {
-              ...r,
-              inList: true,
-              workerCount: count,
-              isPresent: count > 0,
-            };
-          }
-          return r;
-        })
-      );
-
-      setIsDirty(true);
-      toast.success(`Imported previous date's worker counts for ${copiedCount} leader(s).`);
-    } catch (err) {
-      toast.error('Failed to retrieve previous date records.');
-    }
   };
+
+  useEffect(() => {
+    if (copyFetchEnabled && prevDayQuery.data && !prevDayQuery.isFetching) {
+      const prevLeaders = prevDayQuery.data.leaders || [];
+      if (prevLeaders.length === 0) {
+        toast.info('No previous day attendance records found to import.');
+      } else {
+        const prevMap = new Map();
+        prevLeaders.forEach((pl) => {
+          prevMap.set(pl.worker?.toString() || pl._id?.toString(), pl);
+        });
+
+        setDrawerRows((prev) =>
+          prev.map((r) => {
+            const pEntry = prevMap.get(r.worker.toString());
+            if (pEntry) {
+              const cnt = pEntry.workerCount ?? r.defaultWorkerCount ?? 1;
+              return {
+                ...r,
+                inList: true,
+                isPresent: cnt > 0,
+                workerCount: cnt,
+                remarks: pEntry.remarks || r.remarks,
+              };
+            }
+            return r;
+          })
+        );
+        setIsDirty(true);
+        toast.success(`Imported attendance counts from previous day for ${prevLeaders.length} leader(s).`);
+      }
+      setCopyFetchEnabled(false);
+    }
+  }, [copyFetchEnabled, prevDayQuery.data, prevDayQuery.isFetching, toast]);
+
+  const drawerActiveRows = useMemo(() => {
+    return drawerRows.filter((r) => r.inList);
+  }, [drawerRows]);
+
+  const drawerUnaddedLeaders = useMemo(() => {
+    return drawerRows.filter((r) => !r.inList);
+  }, [drawerRows]);
+
+  const drawerTotals = useMemo(() => {
+    let totalWorkers = 0;
+    let totalLabourExpense = 0;
+
+    drawerActiveRows.forEach((r) => {
+      if (r.isPresent) {
+        const cnt = Math.max(0, Number(r.workerCount) || 0);
+        const wage = Math.max(0, Number(r.dailyWage) || 0);
+        totalWorkers += cnt;
+        totalLabourExpense += cnt * wage;
+      }
+    });
+
+    return { totalWorkers, totalLabourExpense };
+  }, [drawerActiveRows]);
 
   const handleSaveAll = async () => {
     const targetSite = isSuperAdmin ? drawerSiteId : siteId;
@@ -405,9 +657,6 @@ export default function Attendance() {
     }
   };
 
-  // -------------------------------------------------------------
-  // NATIVE APPLICATION ATTENDANCE RECORDS VIEW
-  // -------------------------------------------------------------
   return (
     <div className="module-page">
       {/* Module Page Header */}
@@ -427,8 +676,8 @@ export default function Attendance() {
           </div>
           <p>
             {isSuperAdmin && !siteFilter
-              ? 'Viewing daily worker attendance across all project sites.'
-              : `Daily worker counts and labour expense records for ${selectedSite?.name || 'assigned site'}.`}
+              ? 'Viewing worker attendance records across all project sites.'
+              : `Worker attendance records and daily labour expense entries for ${selectedSite?.name || 'assigned site'}.`}
           </p>
         </div>
 
@@ -440,293 +689,602 @@ export default function Attendance() {
         </div>
       </div>
 
-      {/* KPI Summary Cards Grid */}
-      <div className="attendance-kpi-grid">
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__top">
-            <span className="attendance-kpi-card__label">Project Site</span>
-            <div className="attendance-kpi-card__icon-wrap kpi-icon-blue">
-              <Building2 size={20} />
-            </div>
-          </div>
-          <div className="attendance-kpi-card__body">
-            <div className="attendance-kpi-card__value attendance-kpi-card__value--site">
-              {selectedSite?.name || (isSuperAdmin ? 'All Sites' : 'Assigned Site')}
-            </div>
-            <span className="attendance-kpi-card__sub">
-              {selectedSite?.code ? `Site Code: ${selectedSite.code}` : isSuperAdmin ? `All Sites (${activeSites.data?.length || 0})` : 'Active Site View'}
-            </span>
-          </div>
-        </div>
-
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__top">
-            <span className="attendance-kpi-card__label">Active Leaders</span>
-            <div className="attendance-kpi-card__icon-wrap kpi-icon-green">
-              <Users size={20} />
-            </div>
-          </div>
-          <div className="attendance-kpi-card__body">
-            <div className="attendance-kpi-card__value">
-              {summaryTotals.presentLeaders} <span className="attendance-kpi-card__unit">/ {summaryTotals.totalLeaders}</span>
-            </div>
-            <span className="attendance-kpi-card__sub">
-              {summaryTotals.presentLeaders} Leaders Present Today
-            </span>
-          </div>
-        </div>
-
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__top">
-            <span className="attendance-kpi-card__label">Total Labours</span>
-            <div className="attendance-kpi-card__icon-wrap kpi-icon-amber">
-              <UserCheck size={20} />
-            </div>
-          </div>
-          <div className="attendance-kpi-card__body">
-            <div className="attendance-kpi-card__value">
-              {summaryTotals.totalWorkers} <span className="attendance-kpi-card__unit">Workers</span>
-            </div>
-            <span className="attendance-kpi-card__sub">
-              Working on site today
-            </span>
-          </div>
-        </div>
-
-        <div className="attendance-kpi-card">
-          <div className="attendance-kpi-card__top">
-            <span className="attendance-kpi-card__label">Daily Labour Cost</span>
-            <div className="attendance-kpi-card__icon-wrap kpi-icon-purple">
-              <DollarSign size={20} />
-            </div>
-          </div>
-          <div className="attendance-kpi-card__body">
-            <div className="attendance-kpi-card__value attendance-kpi-card__value--cost">
-              {formatCurrency(summaryTotals.totalLabourExpense)}
-            </div>
-            <span className="attendance-kpi-card__sub">
-              {summaryTotals.isRecorded ? '● Attendance Recorded' : '● Draft / Not Recorded'}
-            </span>
-          </div>
-        </div>
+      {/* Attendance Navigation Tabs */}
+      <div className="attendance-tabs">
+        <button
+          type="button"
+          className={`attendance-tab-btn ${activeTab === 'daily' ? 'attendance-tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('daily')}
+        >
+          <Calendar size={16} />
+          <span>Daily View</span>
+        </button>
+        <button
+          type="button"
+          className={`attendance-tab-btn ${activeTab === 'history' ? 'attendance-tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          <Layers size={16} />
+          <span>All Records</span>
+        </button>
       </div>
 
-      {/* Native Filter Toolbar Component */}
-      <FilterToolbar
-        search={search}
-        onSearchChange={(v) => setSearch(v)}
-        searchPlaceholder="Search worker, trade, or site..."
-        filters={filterConfig}
-        onReset={handleResetFilters}
-        showChips={false}
-      />
+      {/* TAB 1: DAILY VIEW */}
+      {activeTab === 'daily' && (
+        <>
+          {/* KPI Summary Cards Grid */}
+          <div className="attendance-kpi-grid">
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Project Site</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-blue">
+                  <Building2 size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value attendance-kpi-card__value--site">
+                  {selectedSite?.name || (isSuperAdmin ? 'All Sites' : 'Assigned Site')}
+                </div>
+                <span className="attendance-kpi-card__sub">
+                  {selectedSite?.code ? `Site Code: ${selectedSite.code}` : isSuperAdmin ? `All Sites (${activeSites.data?.length || 0})` : 'Active Site View'}
+                </span>
+              </div>
+            </div>
 
-      {/* Main Roster Table */}
-      <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-        {/* Table Header Bar */}
-        <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Attendance Roster ({formatDate(selectedDate)})
-            </h3>
-            {summaryTotals.isRecorded ? (
-              <span className="attendance-status-pill attendance-status-pill--marked">
-                <CheckCircle2 size={13} /> Attendance Recorded
-              </span>
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Active Leaders</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-green">
+                  <Users size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value">
+                  {summaryTotals.presentLeaders} <span className="attendance-kpi-card__unit">/ {summaryTotals.totalLeaders}</span>
+                </div>
+                <span className="attendance-kpi-card__sub">
+                  {summaryTotals.presentLeaders} Leaders Present Today
+                </span>
+              </div>
+            </div>
+
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Total Labours</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-amber">
+                  <UserCheck size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value">
+                  {summaryTotals.totalWorkers} <span className="attendance-kpi-card__unit">Workers</span>
+                </div>
+                <span className="attendance-kpi-card__sub">
+                  Working on site today
+                </span>
+              </div>
+            </div>
+
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Daily Labour Cost</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-purple">
+                  <DollarSign size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value attendance-kpi-card__value--cost">
+                  {formatCurrency(summaryTotals.totalLabourExpense)}
+                </div>
+                <span className="attendance-kpi-card__sub">
+                  {summaryTotals.isRecorded ? '● Attendance Recorded' : '● Draft / Not Recorded'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Native Filter Toolbar Component */}
+          <FilterToolbar
+            search={search}
+            onSearchChange={(v) => setSearch(v)}
+            searchPlaceholder="Search worker, trade, or site..."
+            filters={filterConfig}
+            onReset={handleResetFilters}
+            showChips={false}
+          />
+
+          {/* Main Roster Table */}
+          <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+            {/* Table Header Bar */}
+            <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  Attendance Roster ({formatDate(selectedDate)})
+                </h3>
+                {summaryTotals.isRecorded ? (
+                  <span className="attendance-status-pill attendance-status-pill--marked">
+                    <CheckCircle2 size={13} /> Attendance Recorded
+                  </span>
+                ) : (
+                  <span className="attendance-status-pill attendance-status-pill--draft">
+                    <AlertCircle size={13} /> Draft / Not Recorded
+                  </span>
+                )}
+              </div>
+
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                Showing {filteredTableRows.length} of {mainTableRows.length} Worker Leader(s)
+              </div>
+            </div>
+
+            {mainAttendanceQuery.isLoading ? (
+              <TableSkeleton rows={6} columns={isSuperAdmin ? 9 : 8} />
+            ) : mainTableRows.length === 0 ? (
+              <div className="sites-page__state sites-page__state--empty" style={{ padding: '48px 24px' }}>
+                <Inbox size={40} />
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  No attendance records logged for {formatDate(selectedDate)}.
+                </p>
+                <p style={{ margin: '4px 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  Click "Mark Attendance" to log daily worker counts and labour costs for this date.
+                </p>
+              </div>
+            ) : filteredTableRows.length === 0 ? (
+              <div className="sites-page__state sites-page__state--empty" style={{ padding: '40px 24px' }}>
+                <Inbox size={36} />
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  No records match your selected filters.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  style={{
+                    marginTop: 8,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-primary-600)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-xs)',
+                  }}
+                >
+                  Clear all filters
+                </button>
+              </div>
             ) : (
-              <span className="attendance-status-pill attendance-status-pill--draft">
-                <AlertCircle size={13} /> Draft / Not Recorded
-              </span>
+              <div className="worker-payments-card__table-wrapper">
+                <table className="worker-payments-card__table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 60 }}>#</th>
+                      <th>Worker Leader</th>
+                      <th>Profession / Trade</th>
+                      {isSuperAdmin && <th>Project Site</th>}
+                      <th>Status</th>
+                      <th style={{ textAlign: 'center' }}>Labours Working</th>
+                      <th style={{ textAlign: 'right' }}>Daily Wage Rate</th>
+                      <th style={{ textAlign: 'right' }}>Total Expense</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTableRows.map((row, idx) => {
+                      const cnt = row.status === 'present' || row.workerCount > 0 ? row.workerCount : 0;
+                      const wage = row.dailyWage ?? 0;
+                      const cost = cnt * wage;
+
+                      return (
+                        <tr key={row._id} className="attendance-table__row">
+                          <td style={{ fontWeight: 600, color: 'var(--color-text-tertiary)' }}>{idx + 1}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {row.photo?.url ? (
+                                <img
+                                  src={row.photo.url}
+                                  alt={row.name}
+                                  style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    background: 'var(--color-primary-100)',
+                                    color: 'var(--color-primary-700)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {row.name[0]}
+                                </div>
+                              )}
+                              <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{row.name}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                              {row.profession?.name || 'General Trade'}
+                            </span>
+                          </td>
+                          {isSuperAdmin && (
+                            <td>
+                              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                {row.site?.name || 'Assigned Site'}
+                              </span>
+                            </td>
+                          )}
+                          <td>
+                            <span
+                              className={`attendance-status-badge ${
+                                row.status === 'present' || cnt > 0
+                                  ? 'attendance-status-badge--present'
+                                  : 'attendance-status-badge--absent'
+                              }`}
+                            >
+                              {row.status === 'present' || cnt > 0 ? <UserCheck size={12} /> : <UserX size={12} />}
+                              <span>{row.status === 'present' || cnt > 0 ? 'Present' : 'Absent'}</span>
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: cnt > 0 ? 'var(--color-primary-700)' : 'var(--color-text-tertiary)' }}>
+                            <span className={cnt > 0 ? 'cnt-active' : 'cnt-zero'}>{cnt} Workers</span>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                            {formatCurrency(wage)} / day
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: cnt > 0 ? 'var(--color-primary-800)' : 'var(--color-text-tertiary)' }}>
+                            {formatCurrency(cost)}
+                          </td>
+                          <td>
+                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', fontStyle: row.remarks ? 'normal' : 'italic' }}>
+                              {row.remarks || 'No remarks'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Table Summary Footer */}
+            {filteredTableRows.length > 0 && (
+              <div className="attendance-table__footer">
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                  Date: <strong>{formatDate(selectedDate)}</strong> · Site: <strong>{selectedSite?.name || 'All Sites'}</strong>
+                </span>
+                <div style={{ display: 'flex', gap: 16, fontSize: 'var(--font-size-xs)', fontWeight: 700 }}>
+                  <span>Total Labours: <strong style={{ color: 'var(--color-primary-700)' }}>{summaryTotals.totalWorkers}</strong></span>
+                  <span>Total Labour Cost: <strong style={{ color: 'var(--color-primary-700)' }}>{formatCurrency(summaryTotals.totalLabourExpense)}</strong></span>
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* TAB 2: ALL RECORDS (HISTORY) */}
+      {activeTab === 'history' && (
+        <>
+          {/* History KPI Summary Cards Grid */}
+          <div className="attendance-kpi-grid">
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Total Days Recorded</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-blue">
+                  <Calendar size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value">
+                  {historyQuery.data?.summary?.totalDaysRecorded || 0} <span className="attendance-kpi-card__unit">Days</span>
+                </div>
+                <span className="attendance-kpi-card__sub">Unique Days Recorded</span>
+              </div>
+            </div>
+
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">All-Time Labour Cost</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-purple">
+                  <DollarSign size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value attendance-kpi-card__value--cost">
+                  {formatCurrency(historyQuery.data?.summary?.allTimeTotalLabourCost || 0)}
+                </div>
+                <span className="attendance-kpi-card__sub">Cumulative Labour Expense</span>
+              </div>
+            </div>
+
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Avg Daily Cost</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-green">
+                  <TrendingUp size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value">
+                  {formatCurrency(historyQuery.data?.summary?.averageDailyLabourCost || 0)}
+                </div>
+                <span className="attendance-kpi-card__sub">Average Per Recorded Day</span>
+              </div>
+            </div>
+
+            <div className="attendance-kpi-card">
+              <div className="attendance-kpi-card__top">
+                <span className="attendance-kpi-card__label">Total Unique Workers</span>
+                <div className="attendance-kpi-card__icon-wrap kpi-icon-amber">
+                  <Users size={20} />
+                </div>
+              </div>
+              <div className="attendance-kpi-card__body">
+                <div className="attendance-kpi-card__value">
+                  {historyQuery.data?.summary?.totalUniqueWorkers || 0} <span className="attendance-kpi-card__unit">Workers</span>
+                </div>
+                <span className="attendance-kpi-card__sub">Workers Logged</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Date Range Presets Bar */}
+          <div className="attendance-range-presets">
+            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 4 }}>
+              Date Range:
+            </span>
+            <button
+              type="button"
+              className={`attendance-preset-btn ${historyPeriod === 'today' ? 'attendance-preset-btn--active' : ''}`}
+              onClick={() => { setHistoryPeriod('today'); setHistoryPage(1); }}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              className={`attendance-preset-btn ${historyPeriod === 'week' ? 'attendance-preset-btn--active' : ''}`}
+              onClick={() => { setHistoryPeriod('week'); setHistoryPage(1); }}
+            >
+              This Week
+            </button>
+            <button
+              type="button"
+              className={`attendance-preset-btn ${historyPeriod === 'month' ? 'attendance-preset-btn--active' : ''}`}
+              onClick={() => { setHistoryPeriod('month'); setHistoryPage(1); }}
+            >
+              This Month
+            </button>
+            <button
+              type="button"
+              className={`attendance-preset-btn ${historyPeriod === 'custom' ? 'attendance-preset-btn--active' : ''}`}
+              onClick={() => { setHistoryPeriod('custom'); setHistoryPage(1); }}
+            >
+              Custom Range
+            </button>
+
+            {historyPeriod === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 600, color: 'var(--color-text-tertiary)' }}>From:</span>
+                  <DatePickerInput
+                    value={historyStartDate}
+                    onChange={(val) => { setHistoryStartDate(val); setHistoryPage(1); }}
+                    style={{ width: 140, height: 34 }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 600, color: 'var(--color-text-tertiary)' }}>To:</span>
+                  <DatePickerInput
+                    value={historyEndDate}
+                    onChange={(val) => { setHistoryEndDate(val); setHistoryPage(1); }}
+                    style={{ width: 140, height: 34 }}
+                  />
+                </div>
+              </div>
             )}
           </div>
 
-          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-            Showing {filteredTableRows.length} of {mainTableRows.length} Worker Leader(s)
-          </div>
-        </div>
+          {/* History Filter Toolbar */}
+          <FilterToolbar
+            search={historySearch}
+            onSearchChange={(v) => { setHistorySearch(v); setHistoryPage(1); }}
+            searchPlaceholder="Search worker, trade, or site..."
+            filters={historyFilterConfig}
+            onReset={handleResetHistoryFilters}
+            showChips={false}
+            extraActions={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', alignSelf: 'flex-end' }}>
+                <Button
+                  variant="secondary"
+                  onClick={handleExportCSV}
+                  style={{ height: 42, whiteSpace: 'nowrap', fontSize: 'var(--font-size-xs)' }}
+                >
+                  <Download size={14} /> Export CSV
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleExportPDF}
+                  style={{ height: 42, whiteSpace: 'nowrap', fontSize: 'var(--font-size-xs)' }}
+                >
+                  <Printer size={14} /> Print PDF
+                </Button>
+              </div>
+            }
+          />
 
-        {mainAttendanceQuery.isLoading ? (
-          <TableSkeleton rows={6} columns={isSuperAdmin ? 9 : 8} />
-        ) : mainTableRows.length === 0 ? (
-          <div className="sites-page__state sites-page__state--empty" style={{ padding: '48px 16px' }}>
-            <Inbox size={36} style={{ color: 'var(--color-text-tertiary)' }} />
-            <h4 style={{ margin: 0, fontWeight: 700, color: 'var(--color-text-primary)' }}>No attendance records found for this date</h4>
-            <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: 440 }}>
-              Click "Mark Attendance" to select a project site and record today's worker counts.
-            </p>
-            <Button onClick={() => setIsPanelOpen(true)} style={{ marginTop: 8 }}>
-              <Layers size={16} /> Mark Attendance
-            </Button>
-          </div>
-        ) : filteredTableRows.length === 0 ? (
-          <div className="sites-page__state sites-page__state--empty" style={{ padding: '40px 16px' }}>
-            <Filter size={28} style={{ color: 'var(--color-text-tertiary)' }} />
-            <p style={{ margin: 0, fontWeight: 600 }}>No worker leaders match the selected filters.</p>
-            <Button variant="ghost" onClick={handleResetFilters} style={{ padding: '6px 12px' }}>
-              Clear Filters
-            </Button>
-          </div>
-        ) : (
-          <div className="worker-payments-card__table-wrapper" style={{ border: 'none' }}>
-            <table className="worker-payments-card__table" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: 110 }}>Date</th>
-                  {isSuperAdmin && <th style={{ minWidth: 150 }}>Project Site</th>}
-                  <th>Worker Leader</th>
-                  <th>Profession / Trade</th>
-                  <th style={{ textAlign: 'center', width: 120 }}>Status</th>
-                  <th style={{ textAlign: 'center', width: 140 }}>Labours Working</th>
-                  <th style={{ textAlign: 'right' }}>Daily Wage Rate</th>
-                  <th style={{ textAlign: 'right' }}>Total Daily Cost</th>
-                  <th>Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTableRows.map((row) => {
-                  const cnt = row.isPresent ? Math.max(0, Number(row.workerCount) || 0) : 0;
-                  const wage = Math.max(0, Number(row.dailyWage) || 0);
-                  const total = cnt * wage;
-                  const profName = row.profession?.name || 'General Trade';
-                  const siteName = row.site?.name || selectedSite?.name || 'Assigned Site';
+          {/* All Records Table */}
+          <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+            {/* Table Header Bar */}
+            <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  All Attendance History ({historyQuery.data?.total || 0} Records)
+                </h3>
+              </div>
 
-                  return (
-                    <tr key={row.worker}>
-                      {/* Date */}
-                      <td style={{ fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-                        {formatDate(selectedDate)}
-                      </td>
+              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                Page {historyQuery.data?.page || 1} of {historyQuery.data?.totalPages || 1}
+              </div>
+            </div>
 
-                      {/* Project Site Badge - ONLY VISIBLE TO SUPER ADMIN */}
-                      {isSuperAdmin && (
-                        <td>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary-800)', background: 'var(--color-primary-50)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--color-primary-200)' }}>
-                            <Building2 size={12} /> {siteName}
-                          </span>
-                        </td>
-                      )}
-
-                      {/* Worker Leader Info */}
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          {row.photo?.url ? (
-                            <img
-                              src={row.photo.url}
-                              alt={row.name}
-                              style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: '50%',
-                                background: 'var(--color-primary-100)',
-                                color: 'var(--color-primary-800)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontWeight: 700,
-                                fontSize: 14,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {row.name[0]}
-                            </div>
-                          )}
-                          <div>
-                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}>
-                              {row.name}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Profession */}
-                      <td>
-                        <span className="attendance-trade-tag">{profName}</span>
-                      </td>
-
-                      {/* Presence Status */}
-                      <td style={{ textAlign: 'center' }}>
-                        {row.isPresent ? (
-                          <span className="attendance-status-badge attendance-status-badge--present">
-                            <UserCheck size={13} /> Present
-                          </span>
-                        ) : (
-                          <span className="attendance-status-badge attendance-status-badge--absent">
-                            <UserX size={13} /> Absent
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Worker Count */}
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`attendance-worker-cnt-pill ${row.isPresent ? 'cnt-active' : 'cnt-zero'}`}>
-                          {cnt} Labours
+            {historyQuery.isLoading ? (
+              <TableSkeleton rows={8} columns={isSuperAdmin ? 9 : 8} />
+            ) : !historyQuery.data?.items || historyQuery.data.items.length === 0 ? (
+              <div className="sites-page__state sites-page__state--empty" style={{ padding: '48px 24px' }}>
+                <Inbox size={40} />
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  No historical attendance records found for this period.
+                </p>
+                <p style={{ margin: '4px 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  Try adjusting your date range, search query, or selected site filters.
+                </p>
+              </div>
+            ) : (
+              <div className="worker-payments-card__table-wrapper">
+                <table className="worker-payments-card__table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 50 }}>#</th>
+                      <th className="sortable-th" onClick={() => handleHistorySort('date')}>
+                        <span className="sortable-th__content">
+                          Date {renderSortIcon('date')}
                         </span>
-                      </td>
-
-                      {/* Daily Wage */}
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                        {formatCurrency(wage)} / worker
-                      </td>
-
-                      {/* Daily Total */}
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: row.isPresent ? 'var(--color-primary-700)' : 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
-                        {formatCurrency(total)}
-                      </td>
-
-                      {/* Remarks */}
-                      <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: 160 }}>
-                        {row.remarks ? (
-                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
-                            {row.remarks}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-tertiary)' }}>-</span>
-                        )}
-                      </td>
+                      </th>
+                      {isSuperAdmin && <th>Project Site</th>}
+                      <th className="sortable-th" onClick={() => handleHistorySort('workerName')}>
+                        <span className="sortable-th__content">
+                          Worker Leader {renderSortIcon('workerName')}
+                        </span>
+                      </th>
+                      <th>Profession / Trade</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'center' }}>Labours Working</th>
+                      <th style={{ textAlign: 'right' }}>Daily Wage Rate</th>
+                      <th className="sortable-th" style={{ textAlign: 'right' }} onClick={() => handleHistorySort('totalAmount')}>
+                        <span className="sortable-th__content">
+                          Total Cost {renderSortIcon('totalAmount')}
+                        </span>
+                      </th>
+                      <th>Remarks</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  </thead>
+                  <tbody>
+                    {historyQuery.data.items.map((row, idx) => {
+                      const cnt = row.status === 'present' || row.workerCount > 0 ? row.workerCount : 0;
+                      const wage = row.dailyWage ?? 0;
+                      const cost = row.totalAmount ?? cnt * wage;
+                      const rowNum = (historyQuery.data.page - 1) * historyQuery.data.limit + idx + 1;
 
-        {/* Table Footer Summary */}
-        {filteredTableRows.length > 0 && (
-          <div className="attendance-table__footer">
-            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
-              {formatDate(selectedDate)} · Total: {summaryTotals.totalWorkers} Labours Working ({summaryTotals.presentLeaders} Leaders Present)
-            </div>
-            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-primary-800)' }}>
-              Total Labour Cost: {formatCurrency(summaryTotals.totalLabourExpense)}
-            </div>
-          </div>
-        )}
-      </Card>
+                      return (
+                        <tr key={row._id} className="attendance-table__row">
+                          <td style={{ fontWeight: 600, color: 'var(--color-text-tertiary)' }}>{rowNum}</td>
+                          <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            {formatDate(row.date)}
+                          </td>
+                          {isSuperAdmin && (
+                            <td>
+                              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                {row.site?.name || 'Assigned Site'}
+                              </span>
+                            </td>
+                          )}
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                              {row.workerName || row.worker?.name || 'Worker'}
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                              {row.profession?.name || row.professionName || 'General Trade'}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`attendance-status-badge ${
+                                row.status === 'present' || cnt > 0
+                                  ? 'attendance-status-badge--present'
+                                  : 'attendance-status-badge--absent'
+                              }`}
+                            >
+                              {row.status === 'present' || cnt > 0 ? <UserCheck size={12} /> : <UserX size={12} />}
+                              <span>{row.status === 'present' || cnt > 0 ? 'Present' : 'Absent'}</span>
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: cnt > 0 ? 'var(--color-primary-700)' : 'var(--color-text-tertiary)' }}>
+                            <span className={cnt > 0 ? 'cnt-active' : 'cnt-zero'}>{cnt} Workers</span>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                            {formatCurrency(wage)} / day
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: cnt > 0 ? 'var(--color-primary-800)' : 'var(--color-text-tertiary)' }}>
+                            {formatCurrency(cost)}
+                          </td>
+                          <td>
+                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', fontStyle: row.remarks ? 'normal' : 'italic' }}>
+                              {row.remarks || 'No remarks'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-      {/* POPUP / DRAWER MODAL FOR MARK ATTENDANCE */}
+            {/* Pagination Controls for Tab 2 */}
+            {historyQuery.data?.totalPages > 1 && (
+              <div className="attendance-table__footer">
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  Page <strong>{historyQuery.data.page}</strong> of <strong>{historyQuery.data.totalPages}</strong> ({historyQuery.data.total} Total Records)
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={historyQuery.data.page <= 1}
+                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={historyQuery.data.page >= historyQuery.data.totalPages}
+                    onClick={() => setHistoryPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* MARK ATTENDANCE POPUP DRAWER MODAL */}
       <Drawer
         isOpen={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
-        title="Mark Attendance"
+        title="Mark Daily Labour Attendance"
         size="lg"
         footer={
-          <div style={{ display: 'flex', gap: 12, width: '100%', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" onClick={() => setIsPanelOpen(false)} disabled={saveDailyMutation.isPending}>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" onClick={() => setIsPanelOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleSaveAll} isLoading={saveDailyMutation.isPending}>
-              <Save size={18} /> Save Attendance
+              <Save size={18} /> Save Attendance Records
             </Button>
           </div>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-          {/* Popup Controls Bar: Site Selector (Super Admin Only), Date Picker, Import Previous Day */}
           {/* Top Section Controls Bar: Project Site, Attendance Date (UI ONLY), Import Previous Day */}
           <div className="attendance-drawer-header-box">
             {/* Project Site Selection */}

@@ -799,6 +799,139 @@ async function saveDailyAttendance(payload, actor) {
   return getDailyAttendance({ siteId: targetSiteId, date }, actor);
 }
 
+async function getAttendanceHistory(queryParams, actor) {
+  const {
+    siteId,
+    period,
+    startDate,
+    endDate,
+    professionId,
+    status,
+    search,
+    page = 1,
+    limit = 20,
+    sortBy = 'date',
+    sortOrder = 'desc',
+  } = queryParams;
+
+  const siteFilter = resolveSiteScope(actor, siteId);
+  const filterQuery = {
+    ...siteFilter,
+    isDeleted: false,
+  };
+
+  if (status) {
+    filterQuery.status = status;
+  }
+
+  if (professionId) {
+    filterQuery.profession = professionId;
+  }
+
+  // Date range handling
+  const now = new Date();
+  if (startDate || endDate || period === 'custom') {
+    const range = {};
+    if (startDate) {
+      const s = new Date(startDate);
+      s.setHours(0, 0, 0, 0);
+      range.$gte = s;
+    }
+    if (endDate) {
+      const e = new Date(endDate);
+      e.setHours(23, 59, 59, 999);
+      range.$lte = e;
+    }
+    if (Object.keys(range).length > 0) filterQuery.date = range;
+  } else if (period === 'today') {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    filterQuery.date = { $gte: start, $lte: end };
+  } else if (period === 'week') {
+    const start = new Date(now); start.setDate(start.getDate() - 7); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    filterQuery.date = { $gte: start, $lte: end };
+  } else if (period === 'month') {
+    const start = new Date(now); start.setDate(1); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    filterQuery.date = { $gte: start, $lte: end };
+  }
+
+  // Search handling
+  if (search && search.trim()) {
+    const regex = new RegExp(search.trim(), 'i');
+    filterQuery.$or = [
+      { workerName: regex },
+      { contractor: regex },
+      { mobileNumber: regex },
+      { remarks: regex },
+      { professionName: regex },
+    ];
+  }
+
+  // Sort mapping
+  let sortField = sortBy;
+  if (sortBy === 'workerName' || sortBy === 'worker') sortField = 'workerName';
+  else if (sortBy === 'totalCost' || sortBy === 'amount') sortField = 'totalAmount';
+  else if (sortBy === 'date') sortField = 'date';
+
+  const sort = { [sortField]: sortOrder === 'asc' ? 1 : -1 };
+  const numPage = Math.max(1, Number(page) || 1);
+  const numLimit = Math.max(1, Number(limit) || 20);
+  const skip = (numPage - 1) * numLimit;
+
+  // Run queries in parallel: paginated items, count, and summary aggregation stats
+  const [items, total, statsAgg] = await Promise.all([
+    Attendance.find(filterQuery)
+      .populate('site', 'name code')
+      .populate('profession', 'name')
+      .populate('worker', 'name phone workerId')
+      .sort(sort)
+      .skip(skip)
+      .limit(numLimit),
+    Attendance.countDocuments(filterQuery),
+    Attendance.aggregate([
+      { $match: filterQuery },
+      {
+        $group: {
+          _id: null,
+          uniqueDates: { $addToSet: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } },
+          totalCost: { $sum: '$totalAmount' },
+          uniqueWorkers: {
+            $addToSet: {
+              $cond: [
+                { $ifNull: ['$worker', false] },
+                '$worker',
+                '$workerName',
+              ],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
+
+  const stats = statsAgg[0] || {};
+  const totalDaysRecorded = stats.uniqueDates ? stats.uniqueDates.length : 0;
+  const allTimeTotalLabourCost = Math.round((stats.totalCost || 0) * 100) / 100;
+  const averageDailyLabourCost = totalDaysRecorded > 0 ? Math.round((allTimeTotalLabourCost / totalDaysRecorded) * 100) / 100 : 0;
+  const totalUniqueWorkers = stats.uniqueWorkers ? stats.uniqueWorkers.length : 0;
+
+  return {
+    items,
+    total,
+    page: numPage,
+    limit: numLimit,
+    totalPages: Math.ceil(total / numLimit) || 1,
+    summary: {
+      totalDaysRecorded,
+      allTimeTotalLabourCost,
+      averageDailyLabourCost,
+      totalUniqueWorkers,
+    },
+  };
+}
+
 module.exports = {
   recordAttendance,
   recordBatchAttendance,
@@ -812,6 +945,7 @@ module.exports = {
   getPreviousDayWorkers,
   getDailyAttendance,
   saveDailyAttendance,
+  getAttendanceHistory,
   calculateWorkingHours,
   calculateFinancials,
 };

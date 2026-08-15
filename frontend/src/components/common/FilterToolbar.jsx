@@ -12,6 +12,7 @@ export default function FilterToolbar({
   filters = [],
   onReset,
   showChips = true,
+  extraActions,
 }) {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -22,9 +23,8 @@ export default function FilterToolbar({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isMobile = windowWidth < 1024; // Align layout switch with sidebar responsive breakpoints
+  const isMobile = windowWidth < 1024;
 
-  // Calculate number of active filters (excluding search)
   const activeChips = filters.filter((f) => {
     if (f.type === 'checkbox') return !!f.value;
     return f.value !== '' && f.value !== undefined && f.value !== null;
@@ -32,43 +32,38 @@ export default function FilterToolbar({
 
   const activeCount = activeChips.length;
 
-  const handleClearFilter = (f) => {
-    if (f.type === 'checkbox') {
-      f.onChange(false);
+  const handleClearFilter = (filter) => {
+    if (filter.type === 'checkbox') {
+      filter.onChange(false);
     } else {
-      f.onChange('');
+      filter.onChange('');
     }
   };
 
   const getChipLabel = (f) => {
-    if (f.type === 'checkbox') {
-      return f.label;
-    }
-    if (f.type === 'select') {
-      const opt = f.options?.find((o) => String(o.value) === String(f.value));
-      return opt ? opt.label : f.value;
+    if (f.options) {
+      const option = f.options.find((o) => o.value === f.value);
+      return option ? option.label : f.value;
     }
     if (f.type === 'date') {
       return new Date(f.value).toLocaleDateString();
     }
-    return f.value;
+    return String(f.value);
   };
 
   const renderFilterField = (f) => {
     if (f.type === 'select') {
       return (
         <div className="filter-field" key={f.key}>
-          <label htmlFor={`filter-${f.key}`} className="filter-field__label">{f.label}</label>
+          {f.label && <label className="filter-label">{f.label}</label>}
           <select
-            id={`filter-${f.key}`}
-            className="form-select filter-select"
-            value={f.value || ''}
+            className="filter-select touch-target"
+            value={f.value}
             onChange={(e) => f.onChange(e.target.value)}
           >
-            <option value="">All {f.label.toLowerCase()}s</option>
-            {f.options?.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
+            {f.options?.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
@@ -76,31 +71,14 @@ export default function FilterToolbar({
       );
     }
 
-    if (f.type === 'text') {
-      return (
-        <div className="filter-field" key={f.key}>
-          <label htmlFor={`filter-${f.key}`} className="filter-field__label">{f.label}</label>
-          <input
-            id={`filter-${f.key}`}
-            type="text"
-            className="filter-text-input"
-            value={f.value || ''}
-            onChange={(e) => f.onChange(e.target.value)}
-            placeholder={f.placeholder || f.label}
-          />
-        </div>
-      );
-    }
-
     if (f.type === 'date') {
       return (
         <div className="filter-field" key={f.key}>
-          <label htmlFor={`filter-${f.key}`} className="filter-field__label">{f.label}</label>
+          {f.label && <label className="filter-label">{f.label}</label>}
           <DatePickerInput
-            id={`filter-${f.key}`}
-            value={f.value || ''}
-            onChange={(val) => f.onChange(val)}
-            placeholder={f.placeholder || f.label}
+            value={f.value}
+            onChange={f.onChange}
+            placeholder={f.placeholder || 'Select date'}
           />
         </div>
       );
@@ -115,26 +93,35 @@ export default function FilterToolbar({
               checked={!!f.value}
               onChange={(e) => f.onChange(e.target.checked)}
             />
-            {f.label}
+            <span>{f.label}</span>
           </label>
         </div>
       );
     }
 
-    return null;
+    return (
+      <div className="filter-field" key={f.key}>
+        {f.label && <label className="filter-label">{f.label}</label>}
+        <input
+          type="text"
+          className="filter-text-input touch-target"
+          placeholder={f.placeholder || ''}
+          value={f.value}
+          onChange={(e) => f.onChange(e.target.value)}
+        />
+      </div>
+    );
   };
 
   return (
     <div className="filter-toolbar-container">
       <div className="filter-toolbar">
-        {/* Search Field */}
         {onSearchChange && (
-          <div className="filter-field filter-toolbar__search-field">
-            <label className="filter-field__label">Search</label>
+          <div className="filter-toolbar__search-field">
             <div className="filter-toolbar__search">
               <Search size={16} className="filter-toolbar__search-icon" />
               <input
-                type="search"
+                type="text"
                 placeholder={searchPlaceholder}
                 value={search}
                 style={{ outline: 'none' }}
@@ -155,7 +142,6 @@ export default function FilterToolbar({
           </div>
         )}
 
-        {/* Filters Group - Desktop view */}
         {!isMobile ? (
           <div className="filter-toolbar__fields">
             {filters.map((f) => renderFilterField(f))}
@@ -169,10 +155,10 @@ export default function FilterToolbar({
                 <span>Clear Filters</span>
               </button>
             )}
+            {extraActions}
           </div>
         ) : (
-          /* Filters Action - Mobile view drawer trigger */
-          <div className="filter-toolbar__mobile-actions">
+          <div className="filter-toolbar__mobile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button
               type="button"
               className={`filter-mobile-trigger touch-target ${activeCount > 0 ? 'filter-mobile-trigger--active' : ''}`}
@@ -182,11 +168,11 @@ export default function FilterToolbar({
               <span>Filters</span>
               {activeCount > 0 && <span className="filter-mobile-trigger__badge">{activeCount}</span>}
             </button>
+            {extraActions}
           </div>
         )}
       </div>
 
-      {/* Active Filter Chips */}
       {showChips && activeCount > 0 && (
         <div className="filter-chips">
           <span className="filter-chips__title">Active filters:</span>

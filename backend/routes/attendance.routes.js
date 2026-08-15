@@ -13,6 +13,7 @@ router.get('/weekly-report', attendanceController.getWeeklyReport);
 router.get('/contractors', attendanceController.getContractors);
 router.get('/daily', attendanceController.getDailyAttendance);
 router.post('/daily', attendanceController.saveDailyAttendance);
+router.get('/history', attendanceController.getAttendanceHistory);
 // IMPORTANT: /previous-day-workers must be before /:id to avoid collision
 router.get('/previous-day-workers', attendanceController.getPreviousDayWorkers);
 router.post('/batch', attendanceController.recordBatchAttendance);

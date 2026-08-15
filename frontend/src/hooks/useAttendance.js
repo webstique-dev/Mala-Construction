@@ -103,3 +103,11 @@ export function useSaveDailyAttendance() {
   });
 }
 
+export function useAttendanceHistory(params) {
+  return useQuery({
+    queryKey: [QUERY_KEYS.ATTENDANCE, 'history', params],
+    queryFn: () => attendanceService.getHistory(params),
+    placeholderData: (prev) => prev,
+  });
+}
+

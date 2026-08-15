@@ -11,6 +11,7 @@ export const attendanceService = {
   previousDayWorkers: (params) => apiClient.get('/attendance/previous-day-workers', { params }).then((r) => r.data.data),
   getDaily: (params) => apiClient.get('/attendance/daily', { params }).then((r) => r.data.data),
   saveDaily: (payload) => apiClient.post('/attendance/daily', payload).then((r) => r.data),
+  getHistory: (params) => apiClient.get('/attendance/history', { params }).then((r) => r.data.data),
   update: (id, payload) => apiClient.put(`/attendance/${id}`, payload).then((r) => r.data),
   remove: (id) => apiClient.delete(`/attendance/${id}`).then((r) => r.data),
 };
