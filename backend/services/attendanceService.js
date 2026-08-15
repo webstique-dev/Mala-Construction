@@ -578,10 +578,7 @@ async function getPreviousDayWorkers(queryParams, actor) {
   const siteFilter = resolveSiteScope(actor, siteId);
   const targetSiteId = siteFilter.site || (actor.role === 'site_admin' ? actor.assignedSite : null);
 
-  if (!date) throw ApiError.badRequest('date is required');
-
-  const targetDate = new Date(date);
-  targetDate.setHours(0, 0, 0, 0);
+  const { dayStart: targetDate } = parseDayBounds(date);
 
   const lastRecord = await Attendance.findOne({
     site: targetSiteId,
@@ -619,14 +616,36 @@ async function getPreviousDayWorkers(queryParams, actor) {
   }));
 }
 
+function parseDayBounds(dateInput) {
+  let isoDateStr, y, m, d;
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+    const parts = dateInput.split('-').map(Number);
+    y = parts[0]; m = parts[1] - 1; d = parts[2];
+    isoDateStr = dateInput;
+  } else {
+    const dt = dateInput ? new Date(dateInput) : new Date();
+    y = dt.getFullYear(); m = dt.getMonth(); d = dt.getDate();
+    isoDateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  const localStart = new Date(y, m, d, 0, 0, 0, 0);
+  const localEnd = new Date(y, m, d, 23, 59, 59, 999);
+
+  const utcStart = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+  const utcEnd = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
+
+  const queryStart = localStart < utcStart ? localStart : utcStart;
+  const queryEnd = localEnd > utcEnd ? localEnd : utcEnd;
+
+  return { dayStart: localStart, queryStart, queryEnd, isoDateStr };
+}
+
 async function getDailyAttendance(queryParams, actor) {
   const { siteId, date } = queryParams;
   const siteFilter = resolveSiteScope(actor, siteId);
   const targetSiteId = siteFilter.site || null;
 
-  const attendanceDate = date ? new Date(date) : new Date();
-  const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(attendanceDate); dayEnd.setHours(23, 59, 59, 999);
+  const { dayStart, queryStart, queryEnd, isoDateStr } = parseDayBounds(date);
 
   const workerQuery = {
     ...siteFilter,
@@ -641,7 +660,7 @@ async function getDailyAttendance(queryParams, actor) {
 
   const attendanceQuery = {
     ...siteFilter,
-    date: { $gte: dayStart, $lte: dayEnd },
+    date: { $gte: queryStart, $lte: queryEnd },
     isDeleted: false,
   };
 
@@ -649,8 +668,15 @@ async function getDailyAttendance(queryParams, actor) {
 
   const attendanceMap = new Map();
   existingRecords.forEach((rec) => {
-    if (rec.worker) {
-      attendanceMap.set(rec.worker.toString(), rec);
+    if (rec.worker && rec.date) {
+      const recDateObj = new Date(rec.date);
+      const recLocal = `${recDateObj.getFullYear()}-${String(recDateObj.getMonth() + 1).padStart(2, '0')}-${String(recDateObj.getDate()).padStart(2, '0')}`;
+      const recUTC = recDateObj.toISOString().slice(0, 10);
+
+      // Strictly include record only if its recorded calendar date matches isoDateStr
+      if (recLocal === isoDateStr || recUTC === isoDateStr) {
+        attendanceMap.set(rec.worker.toString(), rec);
+      }
     }
   });
 
@@ -659,12 +685,16 @@ async function getDailyAttendance(queryParams, actor) {
 
   const leaderRows = leaders.map((leader) => {
     const rec = attendanceMap.get(leader._id.toString());
-    const workerCount = rec ? (rec.workerCount ?? 0) : (leader.workerCount ?? 1);
-    const dailyWage = rec ? (rec.dailyWage ?? 0) : (leader.dailyWage ?? 0);
-    const totalAmount = workerCount * dailyWage;
+    const isMarked = !!rec;
+    const workerCount = isMarked ? (rec.workerCount ?? 0) : (leader.workerCount ?? 1);
+    const dailyWage = isMarked ? (rec.dailyWage ?? 0) : (leader.dailyWage ?? 0);
+    const status = isMarked ? (rec.status || (rec.workerCount > 0 ? 'present' : 'absent')) : 'absent';
+    const totalAmount = isMarked ? workerCount * dailyWage : 0;
 
-    totalWorkers += workerCount;
-    totalLabourExpense += totalAmount;
+    if (isMarked) {
+      totalWorkers += workerCount;
+      totalLabourExpense += totalAmount;
+    }
 
     return {
       _id: leader._id,
@@ -676,15 +706,16 @@ async function getDailyAttendance(queryParams, actor) {
       defaultWorkerCount: leader.workerCount ?? 1,
       workerCount,
       dailyWage,
+      status,
       totalAmount,
       attendanceId: rec ? rec._id : null,
-      isMarked: !!rec,
+      isMarked,
       remarks: rec ? rec.remarks || '' : '',
     };
   });
 
   return {
-    date: dayStart.toISOString().slice(0, 10),
+    date: isoDateStr,
     siteId: targetSiteId,
     summary: {
       totalLeaders: leaders.length,
@@ -704,8 +735,7 @@ async function saveDailyAttendance(payload, actor) {
 
   assertSiteAccess(actor, targetSiteId);
 
-  const attendanceDate = new Date(date);
-  const dayStart = new Date(attendanceDate); dayStart.setHours(0, 0, 0, 0);
+  const { dayStart, isoDateStr } = parseDayBounds(date);
 
   const savedRecords = [];
 
@@ -718,6 +748,7 @@ async function saveDailyAttendance(payload, actor) {
     const count = Number(item.workerCount) >= 0 ? Number(item.workerCount) : (workerDoc.workerCount ?? 1);
     const wage = item.dailyWage !== undefined && item.dailyWage !== null ? Number(item.dailyWage) : (workerDoc.dailyWage ?? 0);
     const totalCost = Math.round(count * wage * 100) / 100;
+    const recStatus = count > 0 ? 'present' : 'absent';
 
     let profName = '';
     if (workerDoc.profession) {
@@ -741,6 +772,7 @@ async function saveDailyAttendance(payload, actor) {
           mobileNumber: workerDoc.phone || '',
           profession: workerDoc.profession,
           professionName: profName,
+          status: recStatus,
           workerCount: count,
           dailyWage: wage,
           totalAmount: totalCost,
@@ -761,7 +793,7 @@ async function saveDailyAttendance(payload, actor) {
     site: targetSiteId,
     action: 'created',
     entityType: 'Attendance',
-    description: `Saved daily attendance for ${savedRecords.length} worker leader(s) on ${dayStart.toISOString().slice(0, 10)}`,
+    description: `Saved daily attendance for ${savedRecords.length} worker leader(s) on ${isoDateStr}`,
   });
 
   return getDailyAttendance({ siteId: targetSiteId, date }, actor);

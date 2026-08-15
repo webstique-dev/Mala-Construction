@@ -21,7 +21,7 @@ import './Reports.css';
 
 const REPORT_TYPES = [
   { value: 'monthly', label: 'Monthly Financial Statement' },
-  { value: 'worker', label: 'Labour Attendance Registry' },
+  { value: 'worker', label: 'Attendance Records Registry' },
   { value: 'material', label: 'Material Logistics & Costs' },
   { value: 'expense', label: 'Overhead Expenses' },
   { value: 'site', label: 'Project Site Statement' },

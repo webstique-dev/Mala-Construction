@@ -11,6 +11,7 @@ export default function FilterToolbar({
   searchPlaceholder = 'Search...',
   filters = [],
   onReset,
+  showChips = true,
 }) {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -186,7 +187,7 @@ export default function FilterToolbar({
       </div>
 
       {/* Active Filter Chips */}
-      {activeCount > 0 && (
+      {showChips && activeCount > 0 && (
         <div className="filter-chips">
           <span className="filter-chips__title">Active filters:</span>
           <div className="filter-chips__list">

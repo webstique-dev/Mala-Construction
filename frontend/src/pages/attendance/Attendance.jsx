@@ -6,27 +6,22 @@ import {
   Layers,
   Copy,
   Save,
-  Check,
-  Briefcase,
   Building2,
   CheckCircle2,
-  Plus,
   UserCheck,
   UserX,
   Trash2,
-  ArrowLeft,
-  MapPin,
-  ChevronRight,
-  Search,
   RotateCcw,
   Filter,
   AlertCircle,
-  FileText,
+  Inbox,
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import DatePickerInput from '../../components/ui/DatePickerInput';
 import Card from '../../components/ui/Card';
 import Drawer from '../../components/drawers/Drawer';
+import FilterToolbar from '../../components/common/FilterToolbar';
+import { TableSkeleton } from '../../components/ui/Skeleton';
 import { useSiteScope } from '../../hooks/useSiteScope';
 import { useLookups } from '../../hooks/useLookups';
 import {
@@ -36,6 +31,8 @@ import {
 } from '../../hooks/useAttendance';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/format';
+import '../../styles/operational-page.css';
+import '../sites/Sites.css';
 import './Attendance.css';
 
 function getLocalDateString() {
@@ -73,9 +70,9 @@ export default function Attendance() {
   const [drawerSiteId, setDrawerSiteId] = useState('');
   const [selectedLeaderToAdd, setSelectedLeaderToAdd] = useState('');
 
-  // Effective site ID for the Record Daily Labour drawer popup
+  // Effective site ID for the Mark Attendance drawer popup
   const drawerTargetSiteId = isSuperAdmin ? (drawerSiteId || undefined) : siteId;
-  const drawerAttendanceQuery = useDailyAttendance({ siteId: drawerTargetSiteId, date: selectedDate });
+  const drawerAttendanceQuery = useDailyAttendance({ siteId: drawerTargetSiteId, date: getLocalDateString() });
 
   // Local state for drawer attendance rows
   const [drawerRows, setDrawerRows] = useState([]);
@@ -83,13 +80,12 @@ export default function Attendance() {
 
   // Previous Day Copy Query for Drawer
   const [copyFetchEnabled, setCopyFetchEnabled] = useState(false);
-  const prevDayQuery = usePreviousDayWorkers({ siteId: drawerTargetSiteId, date: selectedDate }, copyFetchEnabled);
+  const prevDayQuery = usePreviousDayWorkers({ siteId: drawerTargetSiteId, date: getLocalDateString() }, copyFetchEnabled);
 
   // Synchronize drawer site selection when drawer opens
   useEffect(() => {
     if (isPanelOpen) {
       if (isSuperAdmin) {
-        // Pre-select main site filter if set, otherwise default to first available site
         const defaultSite = siteFilter || activeSites.data?.[0]?._id || '';
         setDrawerSiteId(defaultSite);
       } else {
@@ -98,12 +94,13 @@ export default function Attendance() {
     }
   }, [isPanelOpen, isSuperAdmin, siteFilter, siteId, activeSites.data]);
 
-  // Populate drawer rows whenever drawer query loads or date/site changes
+  // Populate drawer rows whenever drawer query loads or site changes
   useEffect(() => {
     if (drawerAttendanceQuery.data?.leaders) {
       setDrawerRows(
         drawerAttendanceQuery.data.leaders.map((l) => {
           const count = l.workerCount ?? l.defaultWorkerCount ?? 1;
+          const isPresent = l.isMarked ? (l.status === 'present' || (l.status !== 'absent' && count > 0)) : true;
           return {
             worker: l._id,
             name: l.name,
@@ -113,7 +110,7 @@ export default function Attendance() {
             dailyWage: l.dailyWage,
             defaultWorkerCount: l.defaultWorkerCount ?? 1,
             workerCount: count,
-            isPresent: l.isMarked ? count > 0 : true,
+            isPresent,
             isMarked: l.isMarked,
             attendanceId: l.attendanceId,
             remarks: l.remarks || '',
@@ -125,27 +122,35 @@ export default function Attendance() {
     } else {
       setDrawerRows([]);
     }
-  }, [drawerAttendanceQuery.data, selectedDate, drawerTargetSiteId]);
+  }, [drawerAttendanceQuery.data, drawerTargetSiteId]);
 
   // Main table active rows derived from mainAttendanceQuery
   const mainTableRows = useMemo(() => {
     if (!mainAttendanceQuery.data?.leaders) return [];
-    return mainAttendanceQuery.data.leaders.map((l) => {
-      const count = l.workerCount ?? l.defaultWorkerCount ?? 1;
-      return {
-        worker: l._id,
-        name: l.name,
-        profession: l.profession,
-        site: l.site,
-        photo: l.photo,
-        dailyWage: l.dailyWage,
-        workerCount: count,
-        isPresent: l.isMarked ? count > 0 : true,
-        isMarked: l.isMarked,
-        remarks: l.remarks || '',
-      };
-    });
-  }, [mainAttendanceQuery.data]);
+    // Strict date filter guard: verify query date matches selectedDate
+    if (mainAttendanceQuery.data?.date && mainAttendanceQuery.data.date !== selectedDate) {
+      return [];
+    }
+    return mainAttendanceQuery.data.leaders
+      .filter((l) => l.isMarked)
+      .map((l) => {
+        const count = l.workerCount ?? 0;
+        const isPresent = l.status === 'present' || (l.status !== 'absent' && count > 0);
+        return {
+          worker: l._id,
+          name: l.name,
+          profession: l.profession,
+          site: l.site,
+          photo: l.photo,
+          dailyWage: l.dailyWage,
+          workerCount: count,
+          status: l.status || (count > 0 ? 'present' : 'absent'),
+          isPresent,
+          isMarked: true,
+          remarks: l.remarks || '',
+        };
+      });
+  }, [mainAttendanceQuery.data, selectedDate]);
 
   // Filtered rows for main table view
   const filteredTableRows = useMemo(() => {
@@ -154,14 +159,14 @@ export default function Attendance() {
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const matchesName = r.name?.toLowerCase().includes(q);
-        const matchesProf = r.profession?.name?.toLowerCase().includes(q);
+        const matchesProf = (typeof r.profession === 'object' ? r.profession?.name : '')?.toLowerCase().includes(q);
         const matchesSite = r.site?.name?.toLowerCase().includes(q);
         if (!matchesName && !matchesProf && !matchesSite) return false;
       }
       // Profession filter
       if (professionFilter) {
-        const profId = typeof r.profession === 'object' ? r.profession?._id : r.profession;
-        if (profId !== professionFilter) return false;
+        const profId = typeof r.profession === 'object' ? r.profession?._id?.toString() : r.profession?.toString();
+        if (profId !== professionFilter.toString()) return false;
       }
       // Status filter
       if (statusFilter === 'present' && !r.isPresent) return false;
@@ -192,7 +197,7 @@ export default function Attendance() {
       presentLeaders,
       totalWorkers,
       totalLabourExpense,
-      isRecorded: mainAttendanceQuery.data?.summary?.markedCount > 0,
+      isRecorded: (mainAttendanceQuery.data?.summary?.markedCount ?? 0) > 0,
     };
   }, [mainTableRows, mainAttendanceQuery.data]);
 
@@ -226,8 +231,47 @@ export default function Attendance() {
     setSearch('');
     setProfessionFilter('');
     setStatusFilter('');
+    setSelectedDate(getLocalDateString());
     if (isSuperAdmin) setSiteFilter('');
   };
+
+  // Filter toolbar configuration matching standard application layout
+  const filterConfig = [
+    {
+      key: 'date',
+      label: 'Date',
+      type: 'date',
+      value: selectedDate,
+      onChange: (val) => setSelectedDate(val || getLocalDateString()),
+    },
+    ...(isSuperAdmin ? [{
+      key: 'siteId',
+      label: 'Site',
+      type: 'select',
+      value: siteFilter,
+      onChange: (val) => setSiteFilter(val),
+      options: activeSites.data?.map((s) => ({ value: s._id, label: s.name })) || [],
+    }] : []),
+    {
+      key: 'profession',
+      label: 'Profession',
+      type: 'select',
+      value: professionFilter,
+      onChange: (val) => setProfessionFilter(val),
+      options: professions.data?.map((p) => ({ value: p._id, label: p.name })) || [],
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      value: statusFilter,
+      onChange: (val) => setStatusFilter(val),
+      options: [
+        { value: 'present', label: 'Present Only' },
+        { value: 'absent', label: 'Absent Only' },
+      ],
+    },
+  ];
 
   // Drawer handlers
   const handleAddLeaderToList = (leaderId) => {
@@ -339,15 +383,11 @@ export default function Attendance() {
       toast.error('Please select a project site in the popup modal.');
       return;
     }
-    if (!selectedDate) {
-      toast.error('Please select an attendance date.');
-      return;
-    }
 
     try {
       const payload = {
         site: targetSite,
-        date: selectedDate,
+        date: getLocalDateString(),
         records: drawerRows.map((r) => ({
           worker: r.worker,
           workerCount: r.inList && r.isPresent ? Math.max(0, Number(r.workerCount) || 0) : 0,
@@ -359,22 +399,22 @@ export default function Attendance() {
       await saveDailyMutation.mutateAsync(payload);
       setIsDirty(false);
       setIsPanelOpen(false);
-      toast.success(`Daily attendance saved for ${selectedDate}.`);
+      toast.success(`Daily attendance saved for today (${formatDate(getLocalDateString())}).`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save attendance.');
     }
   };
 
   // -------------------------------------------------------------
-  // UNIFIED LABOUR ATTENDANCE MAIN VIEW
+  // NATIVE APPLICATION ATTENDANCE RECORDS VIEW
   // -------------------------------------------------------------
   return (
-    <div className="attendance-page">
-      {/* Page Header */}
-      <div className="attendance-page__header-section">
+    <div className="module-page">
+      {/* Module Page Header */}
+      <div className="module-page__header">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0 }}>Labour Attendance</h1>
+            <h1 style={{ margin: 0 }}>Attendance Records</h1>
             {selectedSite ? (
               <span className="attendance-site-badge">
                 <Building2 size={13} /> {selectedSite.name}
@@ -385,7 +425,7 @@ export default function Attendance() {
               </span>
             ) : null}
           </div>
-          <p style={{ margin: 0 }}>
+          <p>
             {isSuperAdmin && !siteFilter
               ? 'Viewing daily worker attendance across all project sites.'
               : `Daily worker counts and labour expense records for ${selectedSite?.name || 'assigned site'}.`}
@@ -395,14 +435,14 @@ export default function Attendance() {
         {/* Primary Action Button */}
         <div className="attendance-page__header-actions">
           <Button onClick={() => setIsPanelOpen(true)}>
-            <Layers size={18} /> Record Daily Labour
+            <Layers size={18} /> Mark Attendance
           </Button>
         </div>
       </div>
 
-      {/* Top KPI Summary Cards Grid */}
+      {/* KPI Summary Cards Grid */}
       <div className="attendance-kpi-grid">
-        <Card className="attendance-kpi-card">
+        <div className="attendance-kpi-card">
           <div className="attendance-kpi-card__top">
             <span className="attendance-kpi-card__label">Project Site</span>
             <div className="attendance-kpi-card__icon-wrap kpi-icon-blue">
@@ -417,9 +457,9 @@ export default function Attendance() {
               {selectedSite?.code ? `Site Code: ${selectedSite.code}` : isSuperAdmin ? `All Sites (${activeSites.data?.length || 0})` : 'Active Site View'}
             </span>
           </div>
-        </Card>
+        </div>
 
-        <Card className="attendance-kpi-card">
+        <div className="attendance-kpi-card">
           <div className="attendance-kpi-card__top">
             <span className="attendance-kpi-card__label">Active Leaders</span>
             <div className="attendance-kpi-card__icon-wrap kpi-icon-green">
@@ -431,12 +471,12 @@ export default function Attendance() {
               {summaryTotals.presentLeaders} <span className="attendance-kpi-card__unit">/ {summaryTotals.totalLeaders}</span>
             </div>
             <span className="attendance-kpi-card__sub">
-              {summaryTotals.presentLeaders} Present Today
+              {summaryTotals.presentLeaders} Leaders Present Today
             </span>
           </div>
-        </Card>
+        </div>
 
-        <Card className="attendance-kpi-card">
+        <div className="attendance-kpi-card">
           <div className="attendance-kpi-card__top">
             <span className="attendance-kpi-card__label">Total Labours</span>
             <div className="attendance-kpi-card__icon-wrap kpi-icon-amber">
@@ -451,9 +491,9 @@ export default function Attendance() {
               Working on site today
             </span>
           </div>
-        </Card>
+        </div>
 
-        <Card className="attendance-kpi-card">
+        <div className="attendance-kpi-card">
           <div className="attendance-kpi-card__top">
             <span className="attendance-kpi-card__label">Daily Labour Cost</span>
             <div className="attendance-kpi-card__icon-wrap kpi-icon-purple">
@@ -465,120 +505,29 @@ export default function Attendance() {
               {formatCurrency(summaryTotals.totalLabourExpense)}
             </div>
             <span className="attendance-kpi-card__sub">
-              {summaryTotals.isRecorded ? 'Attendance Recorded' : 'Estimated Expense'}
+              {summaryTotals.isRecorded ? '● Attendance Recorded' : '● Draft / Not Recorded'}
             </span>
           </div>
-        </Card>
+        </div>
       </div>
 
-      {/* Filter Toolbar & Date Selector */}
-      <Card className="attendance-filter-bar" style={{ padding: 'var(--space-md)' }}>
-        <div className="attendance-filter-bar__container">
-          {/* Super Admin Site Selector Dropdown */}
-          {isSuperAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200, flex: '1 1 200px' }}>
-              <label style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>
-                Project Site
-              </label>
-              <select
-                className="form-select"
-                value={siteFilter}
-                onChange={(e) => setSiteFilter(e.target.value)}
-                style={{ fontWeight: 600 }}
-              >
-                <option value="">-- All Project Sites --</option>
-                {activeSites.data?.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+      {/* Native Filter Toolbar Component */}
+      <FilterToolbar
+        search={search}
+        onSearchChange={(v) => setSearch(v)}
+        searchPlaceholder="Search worker, trade, or site..."
+        filters={filterConfig}
+        onReset={handleResetFilters}
+        showChips={false}
+      />
 
-          {/* Attendance Date Picker */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160 }}>
-            <label style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>
-              Attendance Date
-            </label>
-            <DatePickerInput
-              id="attendance-date-picker"
-              value={selectedDate}
-              onChange={(val) => setSelectedDate(val)}
-              style={{ width: '100%' }}
-            />
-          </div>
-
-          {/* Worker Leader Search Input */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 220px', minWidth: 200 }}>
-            <label style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>
-              Search Worker
-            </label>
-            <div className="attendance-search-wrap">
-              <Search size={16} className="attendance-search-icon" />
-              <input
-                type="text"
-                placeholder="Search worker, trade, or site..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="form-input attendance-search-input"
-              />
-            </div>
-          </div>
-
-          {/* Profession Filter Dropdown */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160 }}>
-            <label style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>
-              Profession Trade
-            </label>
-            <select
-              className="form-select"
-              value={professionFilter}
-              onChange={(e) => setProfessionFilter(e.target.value)}
-            >
-              <option value="">All Professions</option>
-              {professions.data?.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Attendance Status Filter */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140 }}>
-            <label style={{ fontSize: 'var(--font-size-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)' }}>
-              Presence Status
-            </label>
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="present">Present Only</option>
-              <option value="absent">Absent Only</option>
-            </select>
-          </div>
-
-          {/* Reset Filters */}
-          {(search || professionFilter || statusFilter || siteFilter) && (
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <Button variant="ghost" onClick={handleResetFilters} style={{ padding: '8px 12px' }}>
-                <RotateCcw size={15} /> Reset
-              </Button>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* READ-ONLY LABOUR ATTENDANCE TABLE VIEW */}
+      {/* Main Roster Table */}
       <Card style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
         {/* Table Header Bar */}
         <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Labour Attendance Roster ({formatDate(selectedDate)})
+              Attendance Roster ({formatDate(selectedDate)})
             </h3>
             {summaryTotals.isRecorded ? (
               <span className="attendance-status-pill attendance-status-pill--marked">
@@ -596,59 +545,45 @@ export default function Attendance() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="attendance-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-bg-tertiary, #f8fafc)', borderBottom: '1px solid var(--color-border)' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', width: 110 }}>Date</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: 150 }}>Project Site</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Worker Leader</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Profession / Trade</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', width: 130 }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', width: 140 }}>Labours Working</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Daily Wage Rate</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Total Daily Cost</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mainAttendanceQuery.isLoading ? (
+        {mainAttendanceQuery.isLoading ? (
+          <TableSkeleton rows={6} columns={isSuperAdmin ? 9 : 8} />
+        ) : mainTableRows.length === 0 ? (
+          <div className="sites-page__state sites-page__state--empty" style={{ padding: '48px 16px' }}>
+            <Inbox size={36} style={{ color: 'var(--color-text-tertiary)' }} />
+            <h4 style={{ margin: 0, fontWeight: 700, color: 'var(--color-text-primary)' }}>No attendance records found for this date</h4>
+            <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: 440 }}>
+              Click "Mark Attendance" to select a project site and record today's worker counts.
+            </p>
+            <Button onClick={() => setIsPanelOpen(true)} style={{ marginTop: 8 }}>
+              <Layers size={16} /> Mark Attendance
+            </Button>
+          </div>
+        ) : filteredTableRows.length === 0 ? (
+          <div className="sites-page__state sites-page__state--empty" style={{ padding: '40px 16px' }}>
+            <Filter size={28} style={{ color: 'var(--color-text-tertiary)' }} />
+            <p style={{ margin: 0, fontWeight: 600 }}>No worker leaders match the selected filters.</p>
+            <Button variant="ghost" onClick={handleResetFilters} style={{ padding: '6px 12px' }}>
+              Clear Filters
+            </Button>
+          </div>
+        ) : (
+          <div className="worker-payments-card__table-wrapper" style={{ border: 'none' }}>
+            <table className="worker-payments-card__table" style={{ width: '100%' }}>
+              <thead>
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'var(--color-text-secondary)' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Loading worker attendance records...</p>
-                    </div>
-                  </td>
+                  <th style={{ width: 110 }}>Date</th>
+                  {isSuperAdmin && <th style={{ minWidth: 150 }}>Project Site</th>}
+                  <th>Worker Leader</th>
+                  <th>Profession / Trade</th>
+                  <th style={{ textAlign: 'center', width: 120 }}>Status</th>
+                  <th style={{ textAlign: 'center', width: 140 }}>Labours Working</th>
+                  <th style={{ textAlign: 'right' }}>Daily Wage Rate</th>
+                  <th style={{ textAlign: 'right' }}>Total Daily Cost</th>
+                  <th>Remarks</th>
                 </tr>
-              ) : mainTableRows.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '48px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--color-text-secondary)' }}>
-                      <Users size={36} style={{ color: 'var(--color-text-tertiary)' }} />
-                      <h4 style={{ margin: 0, fontWeight: 700, color: 'var(--color-text-primary)' }}>No attendance records found for this date</h4>
-                      <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: 440 }}>
-                        Click "Record Daily Labour" to select a project site and record today's worker counts.
-                      </p>
-                      <Button onClick={() => setIsPanelOpen(true)} style={{ marginTop: 8 }}>
-                        <Layers size={16} /> Record Daily Labour
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredTableRows.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px 16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'var(--color-text-secondary)' }}>
-                      <Filter size={28} style={{ color: 'var(--color-text-tertiary)' }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>No worker leaders match the selected filters.</p>
-                      <Button variant="ghost" onClick={handleResetFilters} style={{ padding: '6px 12px' }}>
-                        Clear Filters
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredTableRows.map((row) => {
+              </thead>
+              <tbody>
+                {filteredTableRows.map((row) => {
                   const cnt = row.isPresent ? Math.max(0, Number(row.workerCount) || 0) : 0;
                   const wage = Math.max(0, Number(row.dailyWage) || 0);
                   const total = cnt * wage;
@@ -656,33 +591,35 @@ export default function Attendance() {
                   const siteName = row.site?.name || selectedSite?.name || 'Assigned Site';
 
                   return (
-                    <tr key={row.worker} className="attendance-table__row">
+                    <tr key={row.worker}>
                       {/* Date */}
-                      <td style={{ padding: '14px 16px', fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                      <td style={{ fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
                         {formatDate(selectedDate)}
                       </td>
 
-                      {/* Project Site Badge */}
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary-800)', background: 'var(--color-primary-50, #eep2ff)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--color-primary-200, #c7d2fe)' }}>
-                          <Building2 size={12} /> {siteName}
-                        </span>
-                      </td>
+                      {/* Project Site Badge - ONLY VISIBLE TO SUPER ADMIN */}
+                      {isSuperAdmin && (
+                        <td>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary-800)', background: 'var(--color-primary-50)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--color-primary-200)' }}>
+                            <Building2 size={12} /> {siteName}
+                          </span>
+                        </td>
+                      )}
 
                       {/* Worker Leader Info */}
-                      <td style={{ padding: '14px 16px' }}>
+                      <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           {row.photo?.url ? (
                             <img
                               src={row.photo.url}
                               alt={row.name}
-                              style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }}
+                              style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }}
                             />
                           ) : (
                             <div
                               style={{
-                                width: 38,
-                                height: 38,
+                                width: 36,
+                                height: 36,
                                 borderRadius: '50%',
                                 background: 'var(--color-primary-100)',
                                 color: 'var(--color-primary-800)',
@@ -698,7 +635,7 @@ export default function Attendance() {
                             </div>
                           )}
                           <div>
-                            <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}>
+                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}>
                               {row.name}
                             </div>
                           </div>
@@ -706,42 +643,42 @@ export default function Attendance() {
                       </td>
 
                       {/* Profession */}
-                      <td style={{ padding: '14px 16px' }}>
+                      <td>
                         <span className="attendance-trade-tag">{profName}</span>
                       </td>
 
                       {/* Presence Status */}
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center' }}>
                         {row.isPresent ? (
                           <span className="attendance-status-badge attendance-status-badge--present">
-                            <UserCheck size={14} /> Present
+                            <UserCheck size={13} /> Present
                           </span>
                         ) : (
                           <span className="attendance-status-badge attendance-status-badge--absent">
-                            <UserX size={14} /> Absent
+                            <UserX size={13} /> Absent
                           </span>
                         )}
                       </td>
 
                       {/* Worker Count */}
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center' }}>
                         <span className={`attendance-worker-cnt-pill ${row.isPresent ? 'cnt-active' : 'cnt-zero'}`}>
                           {cnt} Labours
                         </span>
                       </td>
 
                       {/* Daily Wage */}
-                      <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
                         {formatCurrency(wage)} / worker
                       </td>
 
                       {/* Daily Total */}
-                      <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 800, color: row.isPresent ? 'var(--color-primary-700)' : 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: row.isPresent ? 'var(--color-primary-700)' : 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
                         {formatCurrency(total)}
                       </td>
 
                       {/* Remarks */}
-                      <td style={{ padding: '14px 16px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: 160 }}>
+                      <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: 160 }}>
                         {row.remarks ? (
                           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
                             {row.remarks}
@@ -752,11 +689,11 @@ export default function Attendance() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Table Footer Summary */}
         {filteredTableRows.length > 0 && (
@@ -764,20 +701,18 @@ export default function Attendance() {
             <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
               {formatDate(selectedDate)} · Total: {summaryTotals.totalWorkers} Labours Working ({summaryTotals.presentLeaders} Leaders Present)
             </div>
-            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 800, color: 'var(--color-primary-800)' }}>
+            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-primary-800)' }}>
               Total Labour Cost: {formatCurrency(summaryTotals.totalLabourExpense)}
             </div>
           </div>
         )}
       </Card>
 
-      {/* ------------------------------------------------------------- */}
-      {/* POPUP / DRAWER MODAL FOR RECORD DAILY LABOUR */}
-      {/* ------------------------------------------------------------- */}
+      {/* POPUP / DRAWER MODAL FOR MARK ATTENDANCE */}
       <Drawer
         isOpen={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
-        title="Record Daily Labour Attendance"
+        title="Mark Attendance"
         size="lg"
         footer={
           <div style={{ display: 'flex', gap: 12, width: '100%', justifyContent: 'flex-end' }}>
@@ -792,18 +727,17 @@ export default function Attendance() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
           {/* Popup Controls Bar: Site Selector (Super Admin Only), Date Picker, Import Previous Day */}
+          {/* Top Section Controls Bar: Project Site, Attendance Date (UI ONLY), Import Previous Day */}
           <div className="attendance-drawer-header-box">
-            {/* Site selector inside popup modal - VISIBLE ONLY TO SUPER ADMIN */}
+            {/* Project Site Selection */}
             {isSuperAdmin ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 220, flex: '1 1 220px' }}>
-                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-primary-800)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Select Project Site *
-                </label>
+              <div className="attendance-drawer-field">
+                <label className="attendance-drawer-label">SELECT PROJECT SITE *</label>
                 <select
                   className="form-select"
                   value={drawerSiteId}
                   onChange={(e) => setDrawerSiteId(e.target.value)}
-                  style={{ fontWeight: 700, borderColor: 'var(--color-primary-400)' }}
+                  style={{ fontWeight: 600, height: 42 }}
                 >
                   <option value="">-- Select Project Site --</option>
                   {activeSites.data?.map((s) => (
@@ -814,33 +748,26 @@ export default function Attendance() {
                 </select>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                  Assigned Project Site
-                </label>
-                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-base)', color: 'var(--color-primary-800)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Building2 size={16} /> {selectedSite?.name || 'Assigned Site'}
+              <div className="attendance-drawer-field">
+                <label className="attendance-drawer-label">PROJECT SITE</label>
+                <div className="attendance-drawer-read-badge">
+                  <Building2 size={15} /> {selectedSite?.name || 'Assigned Site'}
                 </div>
               </div>
             )}
 
-            {/* Attendance Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160 }}>
-              <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                Attendance Date
-              </label>
-              <DatePickerInput
-                id="drawer-date-picker"
-                value={selectedDate}
-                onChange={(val) => setSelectedDate(val)}
-                style={{ width: '100%' }}
-              />
+            {/* Attendance Date (UI ONLY) */}
+            <div className="attendance-drawer-field">
+              <label className="attendance-drawer-label">Attendance Date</label>
+              <div className="attendance-drawer-read-badge">
+                <Calendar size={15} /> {formatDate(getLocalDateString())}
+              </div>
             </div>
 
-            {/* Copy Data from Previous Date Button */}
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <Button variant="secondary" onClick={handleCopyPreviousDay} isLoading={prevDayQuery.isFetching}>
-                <Copy size={16} /> Import Previous Day
+            {/* Import Previous Day Button */}
+            <div className="attendance-drawer-action">
+              <Button variant="secondary" onClick={handleCopyPreviousDay} isLoading={prevDayQuery.isFetching} className="attendance-drawer-btn">
+                <Copy size={15} /> Import Previous Day
               </Button>
             </div>
           </div>
@@ -859,14 +786,13 @@ export default function Attendance() {
               {/* Select Worker Leader to Add Dropdown */}
               {drawerUnaddedLeaders.length > 0 && (
                 <div className="attendance-add-leader-box">
-                  <label style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-primary-800)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Add Worker Leader to Today's Attendance
+                  <label className="attendance-add-leader-label">
+                    ADD WORKER LEADER TO TODAY'S ATTENDANCE
                   </label>
                   <select
-                    className="form-select"
+                    className="form-select attendance-add-leader-select"
                     value={selectedLeaderToAdd}
                     onChange={(e) => handleAddLeaderToList(e.target.value)}
-                    style={{ background: '#ffffff', fontWeight: 500 }}
                   >
                     <option value="">+ Select a Worker Leader from site list...</option>
                     {drawerUnaddedLeaders.map((l) => (
@@ -880,12 +806,14 @@ export default function Attendance() {
 
               {/* Active Worker Leaders Attendance List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                  <h4 style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
-                    Attendance List for {formatDate(selectedDate)} ({drawerActiveRows.length} Leader{drawerActiveRows.length !== 1 ? 's' : ''})
-                  </h4>
-                  <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-primary-700)' }}>
-                    Total Labours: {drawerTotals.totalWorkers} · Expense: {formatCurrency(drawerTotals.totalLabourExpense)}
+                <div className="attendance-summary-header">
+                  <div className="attendance-summary-title">
+                    ATTENDANCE LIST FOR {formatDate(getLocalDateString()).toUpperCase()} ({drawerActiveRows.length} LEADER{drawerActiveRows.length !== 1 ? 'S' : ''})
+                  </div>
+                  <div className="attendance-summary-stats">
+                    <span>Total Labours: <strong>{drawerTotals.totalWorkers}</strong></span>
+                    <span className="attendance-summary-divider">•</span>
+                    <span>Expense: <strong>{formatCurrency(drawerTotals.totalLabourExpense)}</strong></span>
                   </div>
                 </div>
 
@@ -894,9 +822,10 @@ export default function Attendance() {
                     <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>Loading site workers...</p>
                   </div>
                 ) : drawerActiveRows.length === 0 ? (
-                  <div style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary)' }}>
+                  <div className="sites-page__state sites-page__state--empty" style={{ padding: '32px' }}>
+                    <Inbox size={32} />
                     <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-                      No Worker Leaders registered for this site on {formatDate(selectedDate)}.
+                      No Worker Leaders registered for this site on {formatDate(getLocalDateString())}.
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
                       New active workers added to this site will automatically appear here.
@@ -911,77 +840,42 @@ export default function Attendance() {
                     return (
                       <div
                         key={row.worker}
-                        className={`attendance-drawer-card ${row.isPresent ? 'card-present' : 'card-absent'}`}
+                        className={`attendance-worker-card ${row.isPresent ? 'card-present' : 'card-absent'}`}
                       >
                         {/* Top row: Leader info + Present/Absent toggle + Remove button */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div className="attendance-worker-card__header">
+                          <div className="attendance-worker-info">
                             {row.photo?.url ? (
                               <img
                                 src={row.photo.url}
                                 alt={row.name}
-                                style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                                className="attendance-worker-avatar"
                               />
                             ) : (
-                              <div
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: '50%',
-                                  background: 'var(--color-primary-100)',
-                                  color: 'var(--color-primary-700)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontWeight: 700,
-                                  fontSize: 16,
-                                }}
-                              >
-                                {row.name[0]}
+                              <div className="attendance-worker-avatar-initial">
+                                {row.name[0]?.toLowerCase()}
                               </div>
                             )}
                             <div>
-                              <div style={{ fontWeight: 700, fontSize: 'var(--font-size-base)', color: 'var(--color-text-primary)' }}>{row.name}</div>
-                              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', background: 'var(--color-bg-secondary)', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
-                                {row.profession?.name || 'General Trade'}
-                              </span>
+                              <div className="attendance-worker-name">{row.name}</div>
+                              <div className="attendance-worker-role">{row.profession?.name || 'General Helper'}</div>
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className="attendance-worker-actions">
                             <button
                               type="button"
                               onClick={() => handleTogglePresence(row.worker)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '6px 14px',
-                                borderRadius: 20,
-                                border: '1px solid',
-                                fontSize: 'var(--font-size-xs)',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                borderColor: row.isPresent ? 'var(--color-success-500, #22c55e)' : 'var(--color-gray-300)',
-                                background: row.isPresent ? 'var(--color-success-50, #f0fdf4)' : 'var(--color-gray-100)',
-                                color: row.isPresent ? 'var(--color-success-700, #15803d)' : 'var(--color-text-tertiary)',
-                              }}
+                              className={`attendance-presence-pill ${row.isPresent ? 'presence-pill--present' : 'presence-pill--absent'}`}
                             >
-                              {row.isPresent ? <UserCheck size={15} /> : <UserX size={15} />}
+                              {row.isPresent ? <UserCheck size={14} /> : <UserX size={14} />}
                               <span>{row.isPresent ? 'Present' : 'Absent'}</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleRemoveLeaderFromList(row.worker)}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--color-text-tertiary)',
-                                cursor: 'pointer',
-                                padding: 6,
-                                borderRadius: 4,
-                              }}
+                              className="attendance-worker-delete-btn"
                               title="Remove from today's list"
                             >
                               <Trash2 size={16} />
@@ -990,42 +884,32 @@ export default function Attendance() {
                         </div>
 
                         {/* Inputs Grid: Labours working, wage, total cost */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: 'var(--space-md)', alignItems: 'center', background: 'var(--color-bg-secondary)', padding: '12px 14px', borderRadius: 8 }}>
-                          <div>
-                            <label style={{ fontSize: 'var(--font-size-2xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4, fontWeight: 600 }}>
-                              Labours Working
-                            </label>
+                        <div className="attendance-worker-card__grid">
+                          <div className="attendance-grid-col">
+                            <label className="attendance-grid-label">LABOURS WORKING</label>
                             <input
                               type="number"
                               min="0"
                               disabled={!row.isPresent}
                               value={row.isPresent ? row.workerCount : 0}
                               onChange={(e) => handleCountChange(row.worker, e.target.value)}
-                              className="form-input"
+                              className="form-input attendance-count-input"
                               style={{
-                                fontWeight: 700,
-                                fontSize: 'var(--font-size-md)',
-                                textAlign: 'center',
                                 borderColor: row.isPresent ? 'var(--color-primary-500)' : undefined,
-                                background: row.isPresent ? '#ffffff' : undefined,
                               }}
                             />
                           </div>
 
-                          <div>
-                            <span style={{ fontSize: 'var(--font-size-2xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4, fontWeight: 600 }}>
-                              Daily Wage Rate
-                            </span>
-                            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', paddingTop: 6 }}>
+                          <div className="attendance-grid-col">
+                            <label className="attendance-grid-label">DAILY WAGE RATE</label>
+                            <div className="attendance-grid-value">
                               {formatCurrency(wage)} / worker
                             </div>
                           </div>
 
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: 'var(--font-size-2xs)', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4, fontWeight: 600 }}>
-                              Leader Daily Total
-                            </span>
-                            <div style={{ fontWeight: 800, fontSize: 'var(--font-size-md)', color: row.isPresent ? 'var(--color-primary-700)' : 'var(--color-text-tertiary)', paddingTop: 4 }}>
+                          <div className="attendance-grid-col attendance-grid-col--right">
+                            <label className="attendance-grid-label">LEADER DAILY TOTAL</label>
+                            <div className={`attendance-grid-total ${row.isPresent ? 'total-active' : 'total-disabled'}`}>
                               {formatCurrency(totalCost)}
                             </div>
                           </div>
@@ -1038,8 +922,7 @@ export default function Attendance() {
                             placeholder="Add remarks / note (optional)..."
                             value={row.remarks || ''}
                             onChange={(e) => handleRemarksChange(row.worker, e.target.value)}
-                            className="form-input"
-                            style={{ fontSize: 'var(--font-size-xs)' }}
+                            className="form-input attendance-remarks-input"
                           />
                         </div>
                       </div>
